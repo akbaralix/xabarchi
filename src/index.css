@@ -1,0 +1,44 @@
+@import url(https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;800;900&display=swap);
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+}
+body {
+  background-color: #101010;
+  color: rgba(255, 255, 255, 0.87);
+  font-family:
+    "Roboto",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple Color Emoji",
+    "Segoe UI",
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
+    sans-serif;
+}
+
+a {
+  text-decoration: none;
+}
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-left: 240px;
+}
+@media (max-width: 1050px) {
+  .app-container {
+    padding-left: 100px;
+  }
+}
+@media (max-width: 750px) {
+  .app-container {
+    padding-left: 0;
+  }
+}

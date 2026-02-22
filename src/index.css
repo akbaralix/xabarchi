@@ -4,6 +4,7 @@
   padding: 0;
   box-sizing: border-box;
   scrollbar-width: thin;
+  -webkit-tap-highlight-color: transparent;
 }
 body {
   background-color: #101010;
@@ -30,7 +31,7 @@ a {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-left: 240px;
+  padding-left: 290px;
 }
 @media (max-width: 1050px) {
   .app-container {
@@ -40,5 +41,6 @@ a {
 @media (max-width: 750px) {
   .app-container {
     padding-left: 0;
+    margin-bottom: 90px;
   }
 }

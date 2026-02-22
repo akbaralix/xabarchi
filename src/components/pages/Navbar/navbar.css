@@ -1,6 +1,7 @@
 .navbar {
-  background-color: #3c069a;
+  /* background-color: #3c069a; */
   max-width: 280px;
+  width: 100%;
   height: 100vh;
   position: fixed;
   left: 0;
@@ -32,7 +33,7 @@ li {
   transition: 0.3s ease;
 }
 .nav-item:hover {
-  background-color: #4109a3;
+  background-color: #220d45;
 }
 .nav-item svg {
   font-size: 28px;
@@ -42,6 +43,9 @@ li {
   color: #f8f8f8;
 }
 @media (max-width: 1050px) {
+  .navbar {
+    width: auto;
+  }
   .nav-item span {
     display: none;
   }

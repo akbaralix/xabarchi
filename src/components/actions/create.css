@@ -1,0 +1,28 @@
+.create-post {
+  padding: 12px 15px;
+  border-radius: 10px;
+  background-color: rgb(51, 49, 49);
+  margin-top: 20px;
+  margin: 10px;
+}
+.create-post_item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.create-post_item__icon {
+  background-color: #4987eb67;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0866ff;
+}
+.create-post_item__content {
+  line-height: 23px;
+  font-size: 16px;
+  font-family: "poppins";
+}

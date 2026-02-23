@@ -8,7 +8,7 @@
 }
 
 .post-item {
-  background-color: rgb(22, 22, 22);
+  background-color: #101010;
   width: 100%;
 }
 .user-actions {
@@ -37,7 +37,34 @@
 }
 .post-coptions p {
   font-size: 16px;
+  padding: 5px 12px;
+}
+.like-cont {
   padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.like-button {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  cursor: pointer;
+}
+.like-button.liked svg {
+  color: red;
+  transition: 0.2s ease;
+}
+.like-button svg {
+  font-size: 35px;
+  color: white;
+}
+.post-like {
+  font-size: 18px;
+  font-weight: 700;
 }
 @media screen and (max-width: 1250px) {
   .post-container {

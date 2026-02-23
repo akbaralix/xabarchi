@@ -59,8 +59,8 @@ li {
     left: 50%;
     transform: translateX(-50%);
     border-radius: 30px;
-    background-color: #090117aa;
-    backdrop-filter: blur(4px);
+    background-color: #29282c9c;
+    backdrop-filter: blur(10px);
     border-bottom: 1px solid #505050;
     border-top: 1px solid #505050;
     top: unset;

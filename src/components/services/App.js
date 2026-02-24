@@ -2,6 +2,7 @@ const post = [
   {
     id: 1,
     userName: "Akbarali",
+
     profilePic: "/public/devault-avatar.jpg",
     img: "/public/devault-avatar.jpg",
     coptions:
@@ -12,9 +13,9 @@ const post = [
   },
   {
     id: 2,
-    userName: "Ali",
+    userName: "Ali Turdaliyev",
     profilePic: "/public/devault-avatar.jpg",
-    img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ6H_eRORJ6YG8tAWLYcJYFX4OKPHlin2J6pA&s",
+    img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrx43G1K8ifkRpJY9EqappbDDq9U7sMwVaFQ&s",
     coptions: "Silardaham bolganmi 😂😂.",
     like: 20,
     liked: false,
@@ -24,7 +25,7 @@ const post = [
     id: 3,
     userName: "Mahmudjon",
     profilePic: "/public/devault-avatar.jpg",
-    img: "https://www.bu.edu/files/2024/12/Screenshot-2024-12-13-at-12.42.40%E2%80%AFPM.png",
+    img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS57sOUigv-Za6p0CLppQipiJ8cyw-uRcM_0A&s",
     coptions: "Qachonki telefonim ekrani yorqinligi eng balandida bolsa 😂😂",
     like: 42,
     liked: false,

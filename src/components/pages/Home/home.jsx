@@ -1,10 +1,40 @@
-import { useState } from "react";
-import { FaHeart } from "react-icons/fa";
+import { useState, useEffect, useRef } from "react";
+import { FaHeart, FaEllipsisV } from "react-icons/fa";
+import ColorThief from "colorthief"; // Rangni aniqlovchi kutubxona
 import posts from "../../services/App";
 import Create from "../../actions/create";
 import "./home.css";
+
+const PostImage = ({ src }) => {
+  const [bgColor, setBgColor] = useState("rgba(0,0,0,0.1)");
+  const imgRef = useRef();
+
+  const handleImageLoad = () => {
+    const colorThief = new ColorThief();
+    const img = imgRef.current;
+
+    if (img.complete) {
+      const color = colorThief.getColor(img);
+      setBgColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+    }
+  };
+
+  return (
+    <div className="post-img" style={{ backgroundColor: bgColor }}>
+      <img
+        ref={imgRef}
+        src={src}
+        alt="post"
+        crossOrigin="anonymous"
+        onLoad={handleImageLoad}
+      />
+    </div>
+  );
+};
+
 function Home() {
   const [post, setPost] = useState(posts);
+
   const handleLike = (id) => {
     setPost(
       post.map((item) => {
@@ -15,7 +45,6 @@ function Home() {
             like: item.liked ? item.like - 1 : item.like + 1,
           };
         }
-
         return item;
       }),
     );
@@ -24,37 +53,40 @@ function Home() {
   return (
     <div className="post-container">
       <Create />
-      {post.map((item, index) => (
-        <div className="post-item" key={index}>
+      {post.map((item) => (
+        <div className="post-item" key={item.id}>
           <div className="user-actions">
-            <div>
-              <img src={item.profilePic} alt="" />
+            <div className="user-info">
+              <div className="user-img-wrapper">
+                <img src={item.profilePic} alt="" />
+              </div>
+              <div className="user-p">
+                <h3>{item.userName}</h3>
+                <p className="user-post__createAdd">{item.createAdd}</p>
+              </div>
             </div>
-            <div>
-              <h3>{item.userName}</h3>
-            </div>
+            <button className="post-menyu_se">
+              <FaEllipsisV />
+            </button>
           </div>
-          <div className="post-img">
-            <img src={item.img} alt="" />
-          </div>
+
+          <PostImage src={item.img} />
+
           <div className="like-cont">
-            <div className="like-btn_con">
-              <button
-                onClick={() => handleLike(item.id)}
-                className={`like-button ${item.liked ? "liked" : ""}`}
-              >
-                <FaHeart />
-              </button>
-            </div>
-            <div className="like-count">
-              <span className="post-like">{item.like}</span>
-            </div>
+            <button
+              onClick={() => handleLike(item.id)}
+              className={`like-button ${item.liked ? "liked" : ""}`}
+            >
+              <FaHeart />
+            </button>
+            <span className="post-like">{item.like}</span>
           </div>
           <div className="post-coptions">
             <p>{item.coptions}</p>
           </div>
         </div>
       ))}
+      <div className="modal-backdrop"></div>
     </div>
   );
 }

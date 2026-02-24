@@ -16,7 +16,8 @@ const post = [
     userName: "Ali Turdaliyev",
     profilePic: "/public/devault-avatar.jpg",
     img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrx43G1K8ifkRpJY9EqappbDDq9U7sMwVaFQ&s",
-    coptions: "Silardaham bolganmi 😂😂.",
+    coptions:
+      "California Governor Gavin Newsom: No doubt that the Democratic party needs to be, dare I say more culturally normal. I believe that. Less prone to spending disproportionate amount of time on.....pronouns, identity politics. More focus on table top issues, things that really matter. California Governor Gavin Newsom: No doubt that the Democratic party needs to be, dare I say more culturally normal. I believe that.",
     like: 20,
     liked: false,
     createAdd: "17:40",

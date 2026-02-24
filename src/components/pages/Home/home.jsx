@@ -69,9 +69,10 @@ function Home() {
               <FaEllipsisV />
             </button>
           </div>
-
+          <div className="post-coptions">
+            <p>{item.coptions}</p>
+          </div>
           <PostImage src={item.img} />
-
           <div className="like-cont">
             <button
               onClick={() => handleLike(item.id)}
@@ -81,9 +82,7 @@ function Home() {
             </button>
             <span className="post-like">{item.like}</span>
           </div>
-          <div className="post-coptions">
-            <p>{item.coptions}</p>
-          </div>
+          <hr className="post-hr" />
         </div>
       ))}
       <div className="modal-backdrop"></div>

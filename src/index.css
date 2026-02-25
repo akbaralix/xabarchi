@@ -7,7 +7,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 body {
-  background-color: #101010;
+  background-color: #000;
   color: rgba(255, 255, 255, 0.87);
   font-family:
     "Roboto",
@@ -26,21 +26,4 @@ body {
 
 a {
   text-decoration: none;
-}
-.app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding-left: 290px;
-}
-@media (max-width: 1050px) {
-  .app-container {
-    padding-left: 100px;
-  }
-}
-@media (max-width: 750px) {
-  .app-container {
-    padding-left: 0;
-    margin-bottom: 90px;
-  }
 }

@@ -1,9 +1,10 @@
 .create-post {
   padding: 12px 15px;
   border-radius: 10px;
-  background-color: rgb(51, 49, 49);
+  background-color: rgb(13, 56, 96);
   margin-top: 20px;
   margin: 10px;
+  width: 95%;
 }
 .create-post_item {
   display: flex;

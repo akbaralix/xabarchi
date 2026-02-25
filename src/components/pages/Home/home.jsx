@@ -34,6 +34,7 @@ const PostImage = ({ src }) => {
 
 function Home() {
   const [post, setPost] = useState(posts);
+  const [menyu, setMenyu] = useState(false);
 
   const handleLike = (id) => {
     setPost(
@@ -48,6 +49,9 @@ function Home() {
         return item;
       }),
     );
+  };
+  const handdleMenyu = () => {
+    setMenyu((prev) => !prev);
   };
 
   return (
@@ -65,27 +69,32 @@ function Home() {
                 <p className="user-post__createAdd">{item.createAdd}</p>
               </div>
             </div>
-            <button className="post-menyu_se">
+            <button className="post-menyu_se" onClick={() => handdleMenyu()}>
               <FaEllipsisV />
             </button>
           </div>
-          <div className="post-coptions">
-            <p>{item.coptions}</p>
-          </div>
+
           <PostImage src={item.img} />
-          <div className="like-cont">
-            <button
-              onClick={() => handleLike(item.id)}
-              className={`like-button ${item.liked ? "liked" : ""}`}
-            >
-              <FaHeart />
-            </button>
-            <span className="post-like">{item.like}</span>
+          <div className="post-bottom">
+            <div className="like-cont">
+              <button
+                onClick={() => handleLike(item.id)}
+                className={`like-button ${item.liked ? "liked" : ""}`}
+              >
+                <FaHeart />
+              </button>
+              <span className="post-like">{item.like}</span>
+            </div>
+            <div className="post-coptions">
+              <p>{item.coptions}</p>
+            </div>
           </div>
           <hr className="post-hr" />
         </div>
       ))}
-      <div className="modal-backdrop"></div>
+      {menyu && (
+        <div className="modal-backdrop" onClick={() => setMenyu(false)}></div>
+      )}
     </div>
   );
 }

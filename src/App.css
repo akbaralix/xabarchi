@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-left: 290px;
+  padding-left: 320px;
 }
 @media (max-width: 1050px) {
   .app-container {

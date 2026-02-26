@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { FaHeart, FaEllipsisV } from "react-icons/fa";
+import { FaEllipsisV } from "react-icons/fa";
+import { BsHeart, BsHeartFill } from "react-icons/bs";
 import ColorThief from "colorthief"; // Rangni aniqlovchi kutubxona
 import posts from "../../services/App";
-import Create from "../../actions/create";
 import "./home.css";
 
 const PostImage = ({ src }) => {
@@ -35,6 +35,7 @@ const PostImage = ({ src }) => {
 function Home() {
   const [post, setPost] = useState(posts);
   const [menyu, setMenyu] = useState(false);
+  const [create, setCreate] = useState(false);
 
   const handleLike = (id) => {
     setPost(
@@ -54,9 +55,12 @@ function Home() {
     setMenyu((prev) => !prev);
   };
 
+  const handleCreate = () => {
+    setCreate(true);
+  };
+
   return (
     <div className="post-container">
-      <Create />
       {post.map((item) => (
         <div className="post-item" key={item.id}>
           <div className="user-actions">
@@ -81,7 +85,7 @@ function Home() {
                 onClick={() => handleLike(item.id)}
                 className={`like-button ${item.liked ? "liked" : ""}`}
               >
-                <FaHeart />
+                {item.liked ? <BsHeartFill /> : <BsHeart />}
               </button>
               <span className="post-like">{item.like}</span>
             </div>

@@ -1,5 +1,5 @@
 .navbar {
-  background-color: #000;
+  /* background-color: #3c069a; */
   max-width: 280px;
   width: 100%;
   height: 100vh;
@@ -55,13 +55,13 @@ li {
 }
 @media (max-width: 750px) {
   .navbar {
-    bottom: 8px;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
     border-radius: 30px;
-    background-color: #0000009e;
+    background-color: #000000d8;
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid #605f5f;
+    border-bottom: 1px solid #505050;
     border-top: 1px solid #505050;
     top: unset;
     height: auto;
@@ -88,7 +88,7 @@ li {
     background-color: transparent;
   }
   .nav-item svg {
-    font-size: 2.1rem;
+    font-size: 33px;
   }
   .active .nav-item {
     background: transparent;

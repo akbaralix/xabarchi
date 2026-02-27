@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FaEllipsisV } from "react-icons/fa";
+import { FaEllipsisV, FaTimes } from "react-icons/fa";
 import { BsHeart, BsHeartFill } from "react-icons/bs";
 import ColorThief from "colorthief"; // Rangni aniqlovchi kutubxona
 import posts from "../../services/App";
@@ -31,11 +31,40 @@ const PostImage = ({ src }) => {
     </div>
   );
 };
+const reportPost = (id) => {
+  return (
+    <div className="repot-post">
+      <button
+        className="repot-post_remove-btn"
+        onClick={() => setReport(false)}
+      >
+        <FaTimes />
+      </button>
+      <div className="repot-post_header">
+        <p>Post haqida shikoyat qlish</p>
+      </div>{" "}
+      <div className="report-post_item">
+        <span>Noqonuniy yoki zararli kontendan foydalanish</span>
+      </div>{" "}
+      <div className="report-post_item">
+        <span>18+ yoshga mo‘ljallanmagan kontent</span>
+      </div>{" "}
+      <div className="report-post_item">
+        <span>Soxtalashtirilgan yoki yolg‘on ma’lumot</span>
+      </div>{" "}
+      <div className="report-post_item">
+        <span>Boshqa sabablar</span>
+      </div>
+    </div>
+  );
+};
 
 function Home() {
   const [post, setPost] = useState(posts);
   const [menyu, setMenyu] = useState(false);
   const [create, setCreate] = useState(false);
+  const [expandedPost, setExpandedPost] = useState(null);
+  const [report, setReport] = useState(false);
 
   const handleLike = (id) => {
     setPost(
@@ -53,6 +82,7 @@ function Home() {
   };
   const handdleMenyu = () => {
     setMenyu((prev) => !prev);
+    setReport((prev) => !prev);
   };
 
   const handleCreate = () => {
@@ -61,7 +91,7 @@ function Home() {
 
   return (
     <div className="post-container">
-      {post.map((item) => (
+      {post.map((item, index) => (
         <div className="post-item" key={item.id}>
           <div className="user-actions">
             <div className="user-info">
@@ -90,7 +120,19 @@ function Home() {
               <span className="post-like">{item.like}</span>
             </div>
             <div className="post-coptions">
-              <p>{item.coptions}</p>
+              <p>
+                {expandedPost === index
+                  ? item.coptions
+                  : item.coptions.slice(0, 100) + "..."}
+              </p>
+              <button
+                className="post-coptions__toggle"
+                onClick={() =>
+                  setExpandedPost(expandedPost === index ? null : index)
+                }
+              >
+                {expandedPost === index ? "yopish" : "ko'proq"}
+              </button>
             </div>
           </div>
           <hr className="post-hr" />
@@ -99,6 +141,7 @@ function Home() {
       {menyu && (
         <div className="modal-backdrop" onClick={() => setMenyu(false)}></div>
       )}
+      {menyu && reportPost()}
     </div>
   );
 }

@@ -8,6 +8,7 @@ const post = [
     coptions:
       "JavaScript (JS) – bu veb sahifalarni interaktiv qilish uchun ishlatiladigan dasturlash tili. U brauzer ichida ishlaydi va HTML hamda CSS bilan birga ishlatiladi. JavaScript yordamida tugmalarni bosganda harakatlar, formalarni tekshirish, animatsiyalar va hatto butun veb ilovalarni yaratish mumkin.",
     like: 413,
+    views: 567800,
     liked: false,
     createAdd: "17:40",
   },
@@ -20,6 +21,7 @@ const post = [
     coptions:
       "Mushuklar – uy hayvonlari sifatida eng ommabop sut emizuvchilardan biri. Ular mustaqil, lekin mehribon bo‘lishi mumkin. Mushuklar yaxshi ovchilar, kechasi yaxshi ko‘ra oladi va turli tovushlar bilan muloqot qiladi. Odatda uy mushuklari 12–16 yil yashaydi, ba’zilari esa 20 yilgacha umr ko‘radi.",
     like: 20,
+    views: 54200,
     liked: false,
     createAdd: "17:40",
   },
@@ -32,6 +34,7 @@ const post = [
     coptions:
       "Andromeda galaktikasi – Yerga eng yaqin spiral galaktika, taxminan 2,5 million yorug‘lik yili uzoqlikda, ichida 1 trillionga yaqin yulduz bor va kelajakda O‘rta Yo‘l galaktikasi bilan to‘qnashishi mumkin.",
     like: 42,
+    views: 10220,
     liked: false,
     createAdd: "17:40",
   },

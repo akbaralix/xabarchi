@@ -2,7 +2,7 @@ const user = [
   {
     userName: "Akbarali",
     pofilPic: "/public/devault-avatar.jpg",
-    postLength: 20,
+    postLength: 10,
   },
 ];
 

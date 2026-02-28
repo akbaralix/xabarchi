@@ -43,7 +43,8 @@
 }
 
 .create-post__footer button {
-  padding: 8px 25px;
+  padding: 8px 35px;
+
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -125,12 +126,14 @@ textarea {
     display: flex;
     flex-direction: column;
   }
-
+  .create-post__header {
+    padding: 10px;
+    font-size: 1.2rem;
+  }
   .create-post.editor-active {
     width: 100% !important;
   }
 
-  /* Rasm va Caption qismini ustma-ust qilish */
   .editor-container {
     flex-direction: column;
     overflow-y: auto;
@@ -161,5 +164,12 @@ textarea {
   .create-post__footer {
     margin-top: auto;
     margin-bottom: 3rem;
+  }
+  .create-post__footer button {
+    padding: 13px 50px;
+    font-size: 1.2rem;
+  }
+  .back-btn {
+    font-size: 27px;
   }
 }

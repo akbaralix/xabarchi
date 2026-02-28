@@ -15,6 +15,12 @@ function Create({ setCreate }) {
       reader.readAsDataURL(file);
     }
   };
+  const handlePostUpload = () => {
+    alert("Post muvaffaqiyatli yuklandi!");
+    setSelectedImage(null);
+    setCaption("");
+    setCreate(false);
+  };
 
   return (
     <div className="modal-backdrop" onClick={() => setCreate(false)}>
@@ -29,14 +35,16 @@ function Create({ setCreate }) {
             </button>
           )}
           <span>{selectedImage ? "Yangi post" : "Yangi post yaratish"}</span>{" "}
-          <span style={{ cursor: "pointer" }} onClick={() => setCreate(false)}>
-            <FaTimes />
-          </span>
-          {selectedImage && (
-            <button
-              className="share-btn"
-              onClick={() => alert("Post ulashildi!")}
+          {!selectedImage && (
+            <span
+              style={{ fontSize: "30px", cursor: "pointer" }}
+              onClick={() => setCreate(false)}
             >
+              <FaTimes />
+            </span>
+          )}
+          {selectedImage && (
+            <button className="share-btn" onClick={() => handlePostUpload()}>
               Ulashish
             </button>
           )}

@@ -7,7 +7,7 @@ const post = [
     img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQqdu0pbsPJhBEPVJhcuM7moCciIFCdR-HpiA&s",
     coptions:
       "JavaScript (JS) – bu veb sahifalarni interaktiv qilish uchun ishlatiladigan dasturlash tili. U brauzer ichida ishlaydi va HTML hamda CSS bilan birga ishlatiladi. JavaScript yordamida tugmalarni bosganda harakatlar, formalarni tekshirish, animatsiyalar va hatto butun veb ilovalarni yaratish mumkin.",
-    like: 413,
+    like: 4103,
     views: 567800,
     liked: false,
     createAdd: "17:40",

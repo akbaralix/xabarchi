@@ -1,4 +1,3 @@
-/* global process */
 import TelegramBot from "node-telegram-bot-api";
 import dotenv from "dotenv";
 import OTP from "../models/OTP.js";
@@ -11,7 +10,6 @@ const generateOTP = () => {
 
 const getUniqueOtpCode = async () => {
   let otpCode = generateOTP();
-  // Avoid collisions among active OTP records.
   for (let i = 0; i < 5; i += 1) {
     const exists = await OTP.exists({ code: otpCode });
     if (!exists) return otpCode;
@@ -43,7 +41,6 @@ export const startBot = () => {
         code: otpCode,
         firstName: msg.from.first_name || "Telegram User",
       });
-      console.log("OTP saqlandi:", otpCode);
       await bot.sendMessage(
         msg.chat.id,
         `Xabar saytga kirish uchun sizni tasdiqlash kodingiz: ${otpCode}`,
@@ -61,8 +58,3 @@ export const startBot = () => {
 };
 
 export default startBot;
-
-
-
-
-

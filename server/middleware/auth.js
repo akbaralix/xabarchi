@@ -1,6 +1,3 @@
-/* global process */
-/* eslint-env node */
-// middleware/auth.js
 import jwt from "jsonwebtoken";
 
 export const verifyToken = (req, res, next) => {
@@ -14,9 +11,7 @@ export const verifyToken = (req, res, next) => {
   return jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) return res.status(403).json({ message: "Token yaroqsiz!" });
 
-    req.user = decoded; // Token ichidagi ma'lumotni req ga yuklaymiz
-    return next(); // Keyingi funksiyaga o'tishga ruxsat
+    req.user = decoded;
+    return next();
   });
 };
-
-

@@ -1,4 +1,3 @@
-/* global process */
 import express from "express";
 import OTP from "../models/OTP.js";
 import User from "../models/User.js";
@@ -17,12 +16,17 @@ const loginWithCode = async (code, res) => {
   }
 
   const normalizedCode = Number(code);
-  if (!Number.isInteger(normalizedCode) || String(normalizedCode).length !== 6) {
+  if (
+    !Number.isInteger(normalizedCode) ||
+    String(normalizedCode).length !== 6
+  ) {
     return res.status(400).json({ message: "6 xonali kod kiriting!" });
   }
 
   try {
-    const otp = await OTP.findOne({ code: normalizedCode }).sort({ createdAt: -1 });
+    const otp = await OTP.findOne({ code: normalizedCode }).sort({
+      createdAt: -1,
+    });
     if (!otp) {
       return res.status(404).json({ message: "Kod topilmadi yoki eskirgan!" });
     }
@@ -77,8 +81,3 @@ router.get("/import-code", async (req, res) => {
 });
 
 export default router;
-
-
-
-
-

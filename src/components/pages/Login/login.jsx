@@ -24,10 +24,9 @@ function Login() {
   };
 
   const handleTelegramLoginBtn = async () => {
-    if (code.length < 6) return;
+    if (code.length === 0) return;
     if (!code) return;
     setLoading(true);
-    setError("");
 
     try {
       const data = await login(code);

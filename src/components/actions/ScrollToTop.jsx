@@ -6,20 +6,22 @@ const ScrollManager = () => {
   const positions = useRef({});
 
   useEffect(() => {
+    const positionsSnapshot = positions.current;
+
     const saveScroll = () => {
-      positions.current[pathname] = window.scrollY;
+      positionsSnapshot[pathname] = window.scrollY;
     };
 
     window.addEventListener("beforeunload", saveScroll);
 
-    const y = positions.current[pathname] || 0;
+    const y = positionsSnapshot[pathname] || 0;
 
     requestAnimationFrame(() => {
       window.scrollTo({ top: y, behavior: "smooth" });
     });
 
     return () => {
-      positions.current[pathname] = window.scrollY;
+      positionsSnapshot[pathname] = window.scrollY;
       window.removeEventListener("beforeunload", saveScroll);
     };
   }, [pathname]);

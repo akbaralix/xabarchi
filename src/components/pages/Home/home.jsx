@@ -1,9 +1,30 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FaEllipsisV, FaTimes } from "react-icons/fa";
-import { BsHeart, BsHeartFill } from "react-icons/bs";
+import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
+import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
-import posts from "../../services/App";
+import { markPostView, toggleLike } from "../../api/postActions";
 import "./home.css";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const DEFAULT_AVATAR = "/devault-avatar.jpg";
+
+const mapBackendPost = (item) => ({
+  id: item._id || item.id,
+  userName: item.userName || item.UserName || "Siz",
+  profilePic: item.profilePic || DEFAULT_AVATAR,
+  img: item.imageUrl || item.image || item.img,
+  coptions: item.title || item.coptions || "",
+  like: Number(item.likes ?? item.like ?? 0),
+  views: Number(item.views || 0),
+  liked: Boolean(item.viewerHasLiked ?? item.liked),
+  createAdd: item.createdAt
+    ? new Date(item.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "hozir",
+});
 
 const ReportModal = ({ postId, onClose }) => {
   const reportText = [
@@ -44,13 +65,50 @@ const ReportModal = ({ postId, onClose }) => {
 };
 
 function Home() {
-  const [post, setPost] = useState(posts);
+  const [post, setPost] = useState([]);
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
+  const observerRef = useRef(null);
+  const viewedPostIdsRef = useRef(new Set());
+  const navigate = useNavigate();
 
-  const handleLike = (id) => {
-    setPost(
-      post.map((item) =>
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPosts = async () => {
+      try {
+        const token = localStorage.getItem("UserToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/posts`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data) || cancelled) return;
+        setPost(data.map(mapBackendPost));
+      } catch {
+        // API xatoligida joriy ro'yxat saqlanib qoladi.
+      }
+    };
+
+    fetchPosts();
+    const refreshPosts = () => {
+      fetchPosts();
+    };
+    window.addEventListener("post-created", refreshPosts);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("post-created", refreshPosts);
+    };
+  }, []);
+
+  const handleLike = async (id) => {
+    const token = localStorage.getItem("UserToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const previous = post;
+    setPost((prev) =>
+      prev.map((item) =>
         item.id === id
           ? {
               ...item,
@@ -60,12 +118,79 @@ function Home() {
           : item,
       ),
     );
+
+    try {
+      const data = await toggleLike(id);
+      setPost((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                liked: Boolean(data.liked),
+                like: Number(data.likes ?? item.like),
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setPost(previous);
+      alert(error.message || "Like qilishda xatolik");
+    }
   };
+
+  const handleView = useCallback(async (id) => {
+    if (!id || viewedPostIdsRef.current.has(id)) return;
+    const token = localStorage.getItem("UserToken");
+    if (!token) return;
+
+    viewedPostIdsRef.current.add(id);
+    try {
+      const data = await markPostView(id);
+      setPost((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                views: Number(data.views ?? item.views),
+              }
+            : item,
+        ),
+      );
+    } catch {
+      viewedPostIdsRef.current.delete(id);
+    }
+  }, []);
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting || entry.intersectionRatio < 0.6) return;
+          const postId = entry.target.getAttribute("data-post-id");
+          observerRef.current?.unobserve(entry.target);
+          handleView(postId);
+        });
+      },
+      { threshold: [0.6] },
+    );
+
+    return () => observerRef.current?.disconnect();
+  }, [handleView]);
+
+  const observePost = useCallback((node) => {
+    if (!node || !observerRef.current) return;
+    observerRef.current.observe(node);
+  }, []);
 
   return (
     <div className="post-container">
       {post.map((item, index) => (
-        <div className="post-item" key={item.id}>
+        <div
+          className="post-item"
+          key={item.id}
+          data-post-id={item.id}
+          ref={observePost}
+        >
           <div className="user-actions">
             <div className="user-info">
               <div className="user-img-wrapper">
@@ -97,13 +222,18 @@ function Home() {
                 {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
               </button>
               <span className="post-like">{formatNumber(item.like)}</span>
+              <span className="post-like" title="Ko'rishlar">
+                <BsEye /> {formatNumber(item.views)}
+              </span>
             </div>
 
             <div className="post-coptions">
               <p>
                 {expandedPost === index
                   ? item.coptions
-                  : `${item.coptions.slice(0, 100)}...`}
+                  : String(item.coptions).length > 100
+                    ? `${String(item.coptions).slice(0, 100)}...`
+                    : String(item.coptions)}
               </p>
               <button
                 className="post-coptions__toggle"

@@ -8,7 +8,9 @@ const userRouter = express.Router();
 userRouter.get("/me", verifyToken, async (req, res) => {
   try {
     // req.user endi verifyToken'dan kelmoqda
-    const user = await User.findOne({ chatId: req.user.chatId });
+    const user = await User.findOne({ chatId: req.user.chatId }).select(
+      "firstName chatId username",
+    );
 
     if (!user)
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });

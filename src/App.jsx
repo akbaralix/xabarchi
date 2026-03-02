@@ -11,6 +11,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/profil" element={<Profil />} />
       <Route path="/reels" element={<Reels />} />
+      <Route path="/messages" element={<h3>Xabarlar tez kunda</h3>} />
       <Route path="*" element={<h1>Sahifa topilmadi</h1>} />
     </Routes>
   );

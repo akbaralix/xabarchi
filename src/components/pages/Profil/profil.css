@@ -94,6 +94,30 @@
   border-top: 1px solid #565656a5;
   border-radius: 2em;
 }
+.post-delete-btn {
+  position: absolute;
+  top: 3%;
+  right: 3%;
+  border: 1px solid #ffffff33;
+  background: #1a1a1ad6;
+  color: #f4f4f4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.post-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.loading-text,
+.no-posts {
+  padding: 24px;
+  color: #b0b0b0;
+}
 @media screen and (max-width: 750px) {
   .profil-container {
     justify-content: start;
@@ -120,5 +144,9 @@
   }
   .post-imgs {
     height: 190px;
+  }
+  .post-delete-btn {
+    font-size: 11px;
+    padding: 6px 8px;
   }
 }

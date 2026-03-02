@@ -40,20 +40,47 @@
   margin-top: 20px;
 }
 
-.acsens {
-  display: flex;
-  flex-direction: column;
+.login-mode-tabs {
+  width: 80%;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
+  margin-bottom: 18px;
 }
 
-.acsens button {
+.login-mode-tabs button {
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid #313131;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-main);
+  color: #ddd;
+  background: #111;
+  transition: 0.4s ease;
+}
+
+.login-mode-tabs button.active {
+  background-color: var(--primary-color);
+  color: #fff;
+  border-color: transparent;
+}
+
+.password-login {
+  width: 80%;
+  margin: 0 auto;
+}
+
+.telegram-login button {
   width: 80%;
   margin: 0 auto;
   padding: 10px;
   border-radius: var(--radius-lg);
   border: none;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   font-family: var(--font-main);
   display: flex;
@@ -61,20 +88,26 @@
   align-items: center;
   gap: 10px;
   transition: 0.4s ease;
-}
-
-.acsens button:hover {
-  transform: scale(0.98);
-}
-
-.google-login button {
-  color: black;
-  background-color: var(--text-white);
-}
-
-.telegram-login button {
   background-color: var(--tg-blue);
   color: var(--text-white);
+}
+
+.primary-auth-btn {
+  width: 100%;
+  background-color: var(--primary-color);
+  height: 3rem;
+  padding: 0.625rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-white);
+  font-family: var(--font-main);
+  font-weight: 600;
+  margin-top: 1rem;
+  cursor: pointer;
 }
 
 .telegram-code-section {
@@ -131,6 +164,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
 .input-group {
@@ -192,8 +226,13 @@
   color: var(--text-white);
   font-family: var(--font-main);
   font-weight: 600;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
   cursor: pointer;
+}
+.setup-message {
+  font-size: 14px;
+  color: #d1d1d1;
+  margin: 0 0 8px 0;
 }
 .login-error {
   margin-top: 0.75rem;
@@ -214,8 +253,12 @@
   }
 }
 @media (max-width: 750px) {
-  .acsens button {
+  .telegram-login button,
+  .password-login,
+  .login-mode-tabs {
     width: 100%;
+  }
+  .telegram-login button {
     font-size: 17px;
   }
   .login-page h2 {

@@ -1,15 +1,14 @@
 import mongoose from "mongoose";
 
 const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.DATABASEURL);
-    console.log("MongoDB ga ulandi");
-  } catch (error) {
-    console.log(error);
-    process.exit(1);
+  const databaseUrl = process.env.DATABASEURL;
+  if (!databaseUrl) {
+    throw new Error("DATABASEURL topilmadi!");
   }
+
+  await mongoose.connect(databaseUrl);
+  console.log("MongoDB ga ulandi");
+  return true;
 };
 
 export default connectDB;
-
-

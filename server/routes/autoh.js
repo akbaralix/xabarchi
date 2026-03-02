@@ -18,6 +18,7 @@ const validateUsername = (value) => USERNAME_REGEX.test(value);
 
 const validatePassword = (value) =>
   typeof value === "string" && value.length >= MIN_PASSWORD_LENGTH;
+const normalizePassword = (value) => String(value || "").trim().toLowerCase();
 
 const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -131,13 +132,14 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
   }
 
   const normalizedUsername = normalizeUsername(username);
+  const normalizedPassword = normalizePassword(password);
   if (!validateUsername(normalizedUsername)) {
     return res.status(400).json({
       message:
         "Username 4-24 belgidan iborat bo'lsin (faqat harf, raqam, _).",
     });
   }
-  if (!validatePassword(password)) {
+  if (!validatePassword(normalizedPassword)) {
     return res
       .status(400)
       .json({ message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.` });
@@ -170,7 +172,7 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
       });
     }
 
-    const { hash, salt } = hashPassword(password);
+    const { hash, salt } = hashPassword(normalizedPassword);
     const created = await User.create({
       firstName: payload.firstName || "Telegram User",
       chatId: payload.chatId,
@@ -215,6 +217,7 @@ router.post("/api/auth/login-password", async (req, res) => {
   }
 
   const normalizedUsername = normalizeUsername(username);
+  const normalizedPassword = normalizePassword(password);
   if (!validateUsername(normalizedUsername)) {
     return res.status(400).json({ message: "Username formati noto'g'ri." });
   }
@@ -225,7 +228,11 @@ router.post("/api/auth/login-password", async (req, res) => {
       return res.status(401).json({ message: "Username yoki parol noto'g'ri." });
     }
 
-    const isValid = verifyPassword(password, user.passwordSalt, user.passwordHash);
+    const isValid = verifyPassword(
+      normalizedPassword,
+      user.passwordSalt,
+      user.passwordHash,
+    );
     if (!isValid) {
       return res.status(401).json({ message: "Username yoki parol noto'g'ri." });
     }

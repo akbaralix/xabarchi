@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getUser } from "../services/User.js";
 import { FaPlus, FaArrowLeft, FaTimes } from "react-icons/fa";
 import { uploadImage } from "../api/upload.js";
+import { invalidateCache } from "../services/cache.js";
 import ErrorMessage from "./errormsg/error.jsx";
 import "./create.css";
 
@@ -30,19 +31,16 @@ function Create({ setCreate }) {
     setSelectedImage(file);
   };
 
-  // YANGI: Sudrab kelganda (Drag over)
   const handleDragOver = (e) => {
-    e.preventDefault(); // Brauzer rasmni ochib yubormasligi uchun
+    e.preventDefault();
     setIsDragging(true);
   };
 
-  // YANGI: Sudrab chiqib ketganda (Drag leave)
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  // YANGI: Tashlab yuborganda (Drop)
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
@@ -81,8 +79,8 @@ function Create({ setCreate }) {
     if (!selectedImage) return;
     setErrorMsg("");
 
-    if (caption.length > 300) {
-      setErrorMsg("Izoh 300 belgidan uzun bo'lishi mumkin emas");
+    if (caption.length > 5000) {
+      setErrorMsg("Izoh 5000 belgidan uzun bo'lishi mumkin emas");
       return;
     }
 
@@ -120,6 +118,7 @@ function Create({ setCreate }) {
       }
 
       alert("Post muvaffaqiyatli yuklandi!");
+      invalidateCache("posts:");
       window.dispatchEvent(new Event("post-created"));
 
       setSelectedImage(null);
@@ -222,6 +221,7 @@ function Create({ setCreate }) {
             <div className="caption-box">
               <textarea
                 placeholder="Izoh qoldiring..."
+                maxLength={5000}
                 value={caption}
                 onChange={(e) => {
                   setCaption(e.target.value);

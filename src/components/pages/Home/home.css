@@ -135,6 +135,8 @@
   transition: 0.3s ease;
 }
 .post-coptions__toggle {
+  width: 100%;
+  display: flex;
   background: none;
   cursor: pointer;
   border: none;
@@ -142,12 +144,18 @@
   font-family: "poppins", sans-serif;
   font-size: 14px;
 }
-.like-cont {
+.user-post_actions {
   padding: 8px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-top: 0.3em;
   gap: 8px;
+}
+.like-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
 }
 .like-button {
   background: none;
@@ -172,6 +180,12 @@
 .post-like {
   font-size: 15px;
   font-weight: 600;
+}
+.post-views__count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
 }
 .post-hr {
   border: 0.5px solid #1a1a1b;

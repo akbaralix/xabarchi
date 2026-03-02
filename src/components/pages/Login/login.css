@@ -5,9 +5,7 @@
   --text-white: white;
   --text-gray: #a8a8a8;
   --border-color: #484747;
-
   --font-main: "Poppins", system-ui, -apple-system, sans-serif;
-
   --radius-lg: 1.5rem;
   --radius-md: 1rem;
   --radius-sm: 0.75rem;
@@ -19,252 +17,178 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  transition: var(--transition);
+  background-color: var(--bg-dark);
+  color: var(--text-white);
+  font-family: var(--font-main);
 }
 
 .login-page {
   text-align: center;
   max-width: 550px;
   width: 90%;
-  font-size: 20px;
 }
 
 .login-page h2 {
   margin-bottom: 20px;
-  line-height: 25px;
+  font-size: 24px;
 }
-
 .login-page p {
-  font-size: 18px;
-  line-height: 1.4;
-  margin-top: 20px;
+  font-size: 16px;
+  color: var(--text-gray);
+  margin-bottom: 20px;
+}
+.login-page p a {
+  color: var(--tg-blue);
+  text-decoration: none;
 }
 
 .login-mode-tabs {
   width: 80%;
-  margin: 0 auto;
+  margin: 0 auto 25px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 18px;
 }
 
 .login-mode-tabs button {
-  padding: 10px;
+  padding: 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid #313131;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  font-family: var(--font-main);
-  color: #ddd;
+  border: 1px solid var(--border-color);
   background: #111;
-  transition: 0.4s ease;
+  color: var(--text-gray);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: var(--transition);
 }
 
 .login-mode-tabs button.active {
   background-color: var(--primary-color);
-  color: #fff;
+  color: white;
   border-color: transparent;
 }
 
-.password-login {
-  width: 80%;
-  margin: 0 auto;
+.input-group {
+  position: relative;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: white;
+  outline: none;
+  transition: var(--transition);
+}
+
+.input-group label {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-gray);
+  pointer-events: none;
+  transition: var(--transition);
+}
+
+.input-group input:focus,
+.input-group input:not(:placeholder-shown) {
+  border-color: var(--primary-color);
+}
+
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label {
+  top: 0;
+  font-size: 0.8rem;
+  background: var(--bg-dark);
+  padding: 0 5px;
+  color: var(--primary-color);
+}
+
+.primary-auth-btn,
+.code-input button {
+  width: 100%;
+  height: 3.2rem;
+  background: var(--primary-color);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
 }
 
 .telegram-login button {
   width: 80%;
   margin: 0 auto;
-  padding: 10px;
+  padding: 15px;
+  background: var(--tg-blue);
   border-radius: var(--radius-lg);
   border: none;
-  cursor: pointer;
-  font-size: 18px;
-  font-weight: 600;
-  font-family: var(--font-main);
+  color: white;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  transition: 0.4s ease;
-  background-color: var(--tg-blue);
-  color: var(--text-white);
-}
-
-.primary-auth-btn {
-  width: 100%;
-  background-color: var(--primary-color);
-  height: 3rem;
-  padding: 0.625rem;
-  border: 0;
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-white);
-  font-family: var(--font-main);
   font-weight: 600;
-  margin-top: 1rem;
   cursor: pointer;
 }
 
 .telegram-code-section {
   max-width: 400px;
   width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
   margin: 0 auto;
-  padding-top: 2rem;
+
   position: relative;
 }
 
 .auth-close {
   position: absolute;
-  top: 10px;
-  left: 0px;
-  font-size: 1.8rem;
-  cursor: pointer;
+  top: -40px;
+  left: 0;
   background: none;
   border: none;
-  color: #d8d8d8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20px;
-  padding: 5px;
-  transition: var(--transition);
-}
-
-.auth-close:hover {
-  background: #131313;
-}
-
-.telegram-code-section h2 {
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-.telegram-code-section p {
-  line-height: 1.4rem;
-  margin-bottom: 2rem;
-}
-
-.telegram-code-section .telegram-logo {
-  width: 140px;
-  margin-bottom: 1.75rem;
-}
-
-.code-input {
-  padding: 10px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.input-group {
-  position: relative;
-}
-
-.code-input input {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border-radius: var(--radius-sm);
-  height: 3rem;
-  outline: none;
-  border: 1px solid var(--primary-color);
-  color: var(--text-white);
-  background-color: transparent;
-  transition: var(--transition);
-}
-
-.code-input label {
-  font-size: 1rem;
-  color: var(--text-gray);
-  transition: var(--transition);
-  position: absolute;
-  top: 50%;
-  left: 15px;
-  transform: translateY(-60%);
-  pointer-events: none;
-  user-select: none;
-}
-
-.code-input input:focus + label,
-.code-input input:not(:placeholder-shown) + label {
-  top: 0;
-  left: 20px;
-  padding: 0 0.4rem;
-  background-color: var(--bg-dark);
-  color: var(--text-white);
-  font-size: 0.8rem;
-  font-family: var(--font-main);
-  transform: translateY(-50%);
-}
-
-.code-input input:focus {
-  border: 2px solid var(--primary-color);
-}
-
-.code-input button {
-  width: 100%;
-  background-color: var(--primary-color);
-  height: 3rem;
-  padding: 0.625rem;
-  border: 0;
-  border-radius: var(--radius-md);
-  font-size: 1.33rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-white);
-  font-family: var(--font-main);
-  font-weight: 600;
-  margin-top: 0.5rem;
+  color: white;
+  font-size: 2rem;
   cursor: pointer;
 }
-.setup-message {
-  font-size: 14px;
-  color: #d1d1d1;
-  margin: 0 0 8px 0;
+
+.telegram-logo {
+  width: 120px;
+  margin-bottom: 20px;
 }
+
 .login-error {
-  margin-top: 0.75rem;
   color: #ff7b7b;
-  font-size: 0.95rem;
+  margin-top: 15px;
+  font-size: 0.9rem;
 }
+
 .loadingLogin {
-  width: 30px;
-  height: 30px;
-  border: 4px solid white;
+  display: inline-block;
+  width: 25px;
+  height: 25px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
   border-radius: 50%;
-  border-top-color: transparent;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s infinite linear;
 }
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 @media (max-width: 750px) {
+  .login-mode-tabs,
   .telegram-login button,
-  .password-login,
-  .login-mode-tabs {
+  .password-login {
     width: 100%;
-  }
-  .telegram-login button {
-    font-size: 17px;
-  }
-  .login-page h2 {
-    font-size: 23px;
-  }
-  .login-page p {
-    font-size: 16px;
   }
 }

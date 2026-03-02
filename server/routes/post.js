@@ -41,6 +41,9 @@ const createPost = async (req, res) => {
       typeof rawTitle === "string" && rawTitle.trim()
         ? rawTitle.trim()
         : "Yangi post";
+    if (title.length > 5000) {
+      return res.status(400).json({ message: "Izoh 5000 belgidan oshmasligi kerak." });
+    }
 
     if (!isValidHttpUrl(rawImageUrl)) {
       return res.status(400).json({

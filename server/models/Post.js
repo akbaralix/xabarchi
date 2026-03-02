@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const postSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true, trim: true, maxlength: 500 },
+    title: { type: String, required: true, trim: true, maxlength: 5000 },
     imageUrl: { type: String, required: true, trim: true },
     userName: { type: String, required: true, trim: true, maxlength: 120 },
     authorChatId: { type: Number, required: true, index: true },

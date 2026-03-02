@@ -4,10 +4,9 @@ import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
+import { getPosts } from "../../api/posts";
+import { invalidateCache } from "../../services/cache";
 import "./home.css";
-
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
 const mapBackendPost = (item) => ({
@@ -77,11 +76,7 @@ function Home() {
     let cancelled = false;
     const fetchPosts = async () => {
       try {
-        const token = localStorage.getItem("UserToken");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`${API_BASE}/posts`, { headers });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await getPosts();
         if (!Array.isArray(data) || cancelled) return;
         setPost(data.map(mapBackendPost));
       } catch {
@@ -133,6 +128,7 @@ function Home() {
             : item,
         ),
       );
+      invalidateCache("posts:feed:");
     } catch (error) {
       setPost(previous);
       alert(error.message || "Like qilishda xatolik");
@@ -157,6 +153,7 @@ function Home() {
             : item,
         ),
       );
+      invalidateCache("posts:feed:");
     } catch {
       viewedPostIdsRef.current.delete(id);
     }
@@ -215,15 +212,17 @@ function Home() {
           </div>
 
           <div className="post-bottom">
-            <div className="like-cont">
-              <button
-                onClick={() => handleLike(item.id)}
-                className={`like-button ${item.liked ? "liked" : ""}`}
-              >
-                {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
-              </button>
-              <span className="post-like">{formatNumber(item.like)}</span>
-              <span className="post-like" title="Ko'rishlar">
+            <div className="user-post_actions">
+              <div className="like-actions">
+                <button
+                  onClick={() => handleLike(item.id)}
+                  className={`like-button ${item.liked ? "liked" : ""}`}
+                >
+                  {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
+                </button>
+                <span className="post-like">{formatNumber(item.like)}</span>
+              </div>
+              <span className="post-views__count" title="Ko'rishlar">
                 <BsEye /> {formatNumber(item.views)}
               </span>
             </div>
@@ -236,14 +235,18 @@ function Home() {
                     ? `${String(item.coptions).slice(0, 100)}...`
                     : String(item.coptions)}
               </p>
-              <button
-                className="post-coptions__toggle"
-                onClick={() =>
-                  setExpandedPost(expandedPost === index ? null : index)
-                }
-              >
-                {expandedPost === index ? "yopish" : "ko'proq"}
-              </button>
+
+              {/* Tugma faqat matn 100 tadan ko'p bo'lsa ko'rinadi */}
+              {String(item.coptions).length > 100 && (
+                <button
+                  className="post-coptions__toggle"
+                  onClick={() =>
+                    setExpandedPost(expandedPost === index ? null : index)
+                  }
+                >
+                  {expandedPost === index ? "yopish" : "ko'proq"}
+                </button>
+              )}
             </div>
           </div>
           <hr className="post-hr" />

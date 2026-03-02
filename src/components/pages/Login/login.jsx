@@ -50,7 +50,10 @@ function Login() {
 
     setLoading(true);
     try {
-      const data = await loginWithPassword(username, password);
+      const data = await loginWithPassword(
+        username.toLowerCase(),
+        password.toLowerCase(),
+      );
       if (!data?.token) {
         setError("Token olinmadi.");
         return;
@@ -101,8 +104,8 @@ function Login() {
     try {
       const data = await completeTelegramSignup(
         setupToken,
-        setupUsername,
-        setupPassword,
+        setupUsername.toLowerCase(),
+        setupPassword.toLowerCase(),
       );
       if (!data?.token) {
         setError("Token olinmadi.");
@@ -132,7 +135,7 @@ function Login() {
                   resetState();
                 }}
               >
-                Username + Parol
+                Username va Parol
               </button>
               <button
                 className={authMode === "telegram" ? "active" : ""}
@@ -141,7 +144,7 @@ function Login() {
                   resetState();
                 }}
               >
-                Telegram
+                Boshqa
               </button>
             </div>
 
@@ -153,7 +156,7 @@ function Login() {
                     id="username-login"
                     placeholder=" "
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
                   />
                   <label htmlFor="username-login">Username</label>
                 </div>
@@ -163,17 +166,21 @@ function Login() {
                     id="password-login"
                     placeholder=" "
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(e.target.value.toLowerCase())}
                   />
                   <label htmlFor="password-login">Parol</label>
                 </div>
-                <button className="primary-auth-btn" onClick={handlePasswordLogin}>
+                <button
+                  className="primary-auth-btn"
+                  onClick={handlePasswordLogin}
+                >
                   {loading ? <span className="loadingLogin"></span> : "Kirish"}
                 </button>
               </div>
             ) : (
               <div className="telegram-login">
                 <button
+                  style={{ fontSize: "1rem" }}
                   onClick={() => {
                     setShowTelegramFlow(true);
                     resetState();
@@ -207,8 +214,10 @@ function Login() {
             />
             <h2>Telegram orqali kirish</h2>
             <p>
-              <a href="https://t.me/xabarchixbot">Telegram botimizga</a> xabar
-              yuboring va yuborilgan kodni kiriting.
+              <a target="blank" href="https://t.me/xabarchixbot">
+                Telegram botimizga
+              </a>
+              <span> xabar yuboring va yuborilgan kodni kiriting.</span>
             </p>
 
             {!showTelegramSetup ? (
@@ -246,7 +255,9 @@ function Login() {
                     value={setupUsername}
                     onChange={(e) =>
                       setSetupUsername(
-                        e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase(),
+                        e.target.value
+                          .replace(/[^a-zA-Z0-9_]/g, "")
+                          .toLowerCase(),
                       )
                     }
                   />
@@ -258,7 +269,9 @@ function Login() {
                     id="setup-password"
                     placeholder=" "
                     value={setupPassword}
-                    onChange={(e) => setSetupPassword(e.target.value)}
+                    onChange={(e) =>
+                      setSetupPassword(e.target.value.toLowerCase())
+                    }
                   />
                   <label htmlFor="setup-password">Parol tanlang</label>
                 </div>
@@ -268,9 +281,13 @@ function Login() {
                     id="setup-password-confirm"
                     placeholder=" "
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) =>
+                      setConfirmPassword(e.target.value.toLowerCase())
+                    }
                   />
-                  <label htmlFor="setup-password-confirm">Parolni tasdiqlang</label>
+                  <label htmlFor="setup-password-confirm">
+                    Parolni tasdiqlang
+                  </label>
                 </div>
                 <button onClick={handleCompleteSignup}>
                   {loading ? (

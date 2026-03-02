@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
 export const loginWithTelegramCode = async (code) => {
   const res = await fetch(`${API_BASE}/api/auth/login`, {

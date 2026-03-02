@@ -6,7 +6,8 @@ import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
 import "./home.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
 const mapBackendPost = (item) => ({

@@ -6,7 +6,8 @@ import { uploadImage } from "../api/upload.js";
 import ErrorMessage from "./errormsg/error.jsx";
 import "./create.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
 function Create({ setCreate }) {
   const [selectedImage, setSelectedImage] = useState(null);

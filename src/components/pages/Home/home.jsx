@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
+import { notifyError, notifyInfo } from "../../../utils/feedback";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
@@ -43,14 +44,14 @@ const mapBackendPost = (item) => ({
 const ReportModal = ({ postId, onClose }) => {
   const reportText = [
     "Noqonuniy yoki zararli kontendan foydalanish",
-    "18+ yoshga mo‘ljallanmagan kontent",
-    "Soxtalashtirilgan yoki yolg’on ma’lumot",
+    "18+ yoshga mo'ljallanmagan kontent",
+    "Soxtalashtirilgan yoki yolg'on ma'lumot",
     "Boshqa sabablar",
   ];
 
   const handleRepostPost = (index) => {
     console.log(`Post ID: ${postId} haqida shikoyat: ${reportText[index]}`);
-    alert("Shikoyatingiz qabul qilindi. Rahmat!");
+    notifyInfo("Shikoyatingiz qabul qilindi. Rahmat!");
     onClose();
   };
 
@@ -144,7 +145,7 @@ function Home() {
       );
     } catch (error) {
       setPost(previous);
-      alert(error.message || "Like qilishda xatolik");
+      notifyError(error.message || "Like qilishda xatolik");
     }
   };
 
@@ -253,7 +254,6 @@ function Home() {
                     : String(item.coptions)}
               </p>
 
-              {/* Tugma faqat matn 100 tadan ko'p bo'lsa ko'rinadi */}
               {String(item.coptions).length > 100 && (
                 <button
                   className="post-coptions__toggle"

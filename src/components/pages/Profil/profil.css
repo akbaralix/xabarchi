@@ -95,6 +95,18 @@
 .post-actions span {
   color: #a8a8a8;
 }
+.profile-message-btn {
+  margin-top: 10px;
+  width: fit-content;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 15px;
+  background: #4f5bd5;
+  font-family: "poppins";
+  color: #fff;
+  cursor: pointer;
+}
 .profile-bio-text {
   margin-top: 10px;
   color: #dedede;
@@ -260,6 +272,9 @@
   .profile-bio-text,
   .profile-bio-edit {
     max-width: 100%;
+  }
+  .profile-message-btn {
+    width: 100%;
   }
   .user-posts {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

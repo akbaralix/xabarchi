@@ -6,6 +6,11 @@ import { FiTrash2 } from "react-icons/fi";
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView } from "../../api/postActions";
 import {
+  confirmAction,
+  notifyError,
+  notifySuccess,
+} from "../../../utils/feedback";
+import {
   getUser,
   getUserByUsername,
   getUserPostsByUsername,
@@ -64,7 +69,8 @@ function Profil() {
 
   const isOwnProfile =
     !targetUsername ||
-    (currentUser?.username && targetUsername === String(currentUser.username).toLowerCase());
+    (currentUser?.username &&
+      targetUsername === String(currentUser.username).toLowerCase());
 
   const handleProfilePicAdd = () => {
     if (!isOwnProfile) return;
@@ -146,7 +152,11 @@ function Profil() {
   const handleDelete = async (postId) => {
     if (!isOwnProfile) return;
 
-    const ok = window.confirm("Haqiqatan ham bu postni o'chirmoqchimisiz?");
+    const ok = await confirmAction(
+      "Haqiqatan ham bu postni o'chirmoqchimisiz?",
+      "O'chirish",
+      "Bekor",
+    );
     if (!ok) return;
 
     setDeletingId(postId);
@@ -154,7 +164,7 @@ function Profil() {
       await deleteMyPost(postId);
       setPosts((prev) => prev.filter((post) => post._id !== postId));
     } catch (err) {
-      alert(err.message || "Postni o'chirishda xatolik.");
+      notifyError(err.message || "Postni o'chirishda xatolik.");
     } finally {
       setDeletingId("");
     }
@@ -217,9 +227,9 @@ function Profil() {
       const updated = await updateUserProfile({ profilePic: imageUrl });
       setUser(updated);
       setCurrentUser(updated);
-      alert("Profil rasmi yangilandi");
+      notifySuccess("Profil rasmi yangilandi");
     } catch (err) {
-      alert(err.message || "Rasmni yangilashda xatolik");
+      notifyError(err.message || "Rasmni yangilashda xatolik");
     } finally {
       event.target.value = "";
       setUploadingPhoto(false);
@@ -235,10 +245,10 @@ function Profil() {
       setUser(updated);
       setCurrentUser(updated);
       setBio(updated.bio || "");
-      alert("Bio saqlandi");
+      notifySuccess("Bio saqlandi");
       setIsEditOpen(false);
     } catch (err) {
-      alert(err.message || "Bio saqlashda xatolik");
+      notifyError(err.message || "Bio saqlashda xatolik");
     } finally {
       setSavingBio(false);
     }
@@ -267,7 +277,9 @@ function Profil() {
               <button
                 className="profile-edit-toggle"
                 onClick={() => setIsEditOpen((prev) => !prev)}
-                title={isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"}
+                title={
+                  isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
+                }
               >
                 {isEditOpen ? <FaTimes /> : <FaPen />}
               </button>
@@ -279,6 +291,16 @@ function Profil() {
             </p>
             <span>postlar</span>
           </div>
+          {!isOwnProfile ? (
+            <button
+              className="profile-message-btn"
+              onClick={() =>
+                navigate(`/messages?user=${encodeURIComponent(user.username || "")}`)
+              }
+            >
+              Xabar yuborish
+            </button>
+          ) : null}
           {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
           {isOwnProfile && isEditOpen ? (
             <div className="profile-bio-editcontainer">
@@ -292,7 +314,10 @@ function Profil() {
                     accept="image/*"
                     onChange={handleProfilePicChange}
                   />
-                  <button onClick={handleProfilePicAdd} className="profil-photo-addbtn">
+                  <button
+                    onClick={handleProfilePicAdd}
+                    className="profil-photo-addbtn"
+                  >
                     {uploadingPhoto ? "..." : <BsCamera />}
                   </button>
                 </div>
@@ -302,7 +327,11 @@ function Profil() {
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                 />
-                <button className="bio-save-btn" onClick={handleBioSave} disabled={savingBio}>
+                <button
+                  className="bio-save-btn"
+                  onClick={handleBioSave}
+                  disabled={savingBio}
+                >
                   {savingBio ? "Saqlanmoqda..." : "Bio saqlash"}
                 </button>
               </div>
@@ -318,9 +347,17 @@ function Profil() {
           <p className="loading-text">Yuklanmoqda...</p>
         ) : posts.length > 0 ? (
           posts.map((item) => (
-            <div className="profile-post_item" key={item._id} data-post-id={item._id} ref={observePost}>
+            <div
+              className="profile-post_item"
+              key={item._id}
+              data-post-id={item._id}
+              ref={observePost}
+            >
               <div className="post-imgs">
-                <img src={item.imageUrl || item.image} alt={item.title || "post"} />
+                <img
+                  src={item.imageUrl || item.image}
+                  alt={item.title || "post"}
+                />
               </div>
               <div className="post-overlay">
                 <span className="post-time-badge">
@@ -328,7 +365,9 @@ function Profil() {
                 </span>
                 <div className="post-views">
                   <BsEye className="views-icon" />
-                  <span className="views-count">{formatNumber(item.views || 0)}</span>
+                  <span className="views-count">
+                    {formatNumber(item.views || 0)}
+                  </span>
                 </div>
                 {isOwnProfile ? (
                   <button

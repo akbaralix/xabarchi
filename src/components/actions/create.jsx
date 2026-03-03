@@ -4,6 +4,7 @@ import { getUser } from "../services/User.js";
 import { FaPlus, FaArrowLeft, FaTimes } from "react-icons/fa";
 import { uploadImage } from "../api/upload.js";
 import { invalidateCache } from "../services/cache.js";
+import { notifyError, notifySuccess } from "../../utils/feedback.js";
 import ErrorMessage from "./errormsg/error.jsx";
 import "./create.css";
 
@@ -17,13 +18,11 @@ function Create({ setCreate }) {
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // YANGI: Drag-and-drop holatini kuzatish uchun state
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Fayl tanlash tugmasi orqali yuklash
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -48,7 +47,6 @@ function Create({ setCreate }) {
     const file = e.dataTransfer.files[0];
     if (!file) return;
 
-    // Fayl rasm ekanligini tekshirish
     if (!file.type.startsWith("image/")) {
       setErrorMsg("Iltimos, faqat rasm yuklang!");
       return;
@@ -117,7 +115,7 @@ function Create({ setCreate }) {
         throw new Error(data.message || "Serverga yuborishda xatolik");
       }
 
-      alert("Post muvaffaqiyatli yuklandi!");
+      notifySuccess("Post muvaffaqiyatli yuklandi");
       invalidateCache("posts:");
       window.dispatchEvent(new Event("post-created"));
 
@@ -126,7 +124,9 @@ function Create({ setCreate }) {
       setCreate(false);
     } catch (error) {
       console.error("Upload error:", error);
-      setErrorMsg(error.message || "Xatolik yuz berdi, qayta urinib ko'ring!");
+      const msg = error.message || "Xatolik yuz berdi, qayta urinib ko'ring!";
+      setErrorMsg(msg);
+      notifyError(msg);
     } finally {
       setUploading(false);
     }

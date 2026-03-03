@@ -1,0 +1,82 @@
+.app-toast-stack {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(92vw, 520px);
+  pointer-events: none;
+}
+
+.app-toast {
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fff;
+  font-size: 15px;
+  border: 1px solid #ffffff2a;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px #00000055;
+  font-family: "poppins", sans-serif;
+}
+
+.app-toast.info {
+  background: #1f1f22e6;
+}
+
+.app-toast.success {
+  background: #12693ee8;
+}
+
+.app-toast.error {
+  background: #8e2020eb;
+}
+
+.app-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  background: #0000008a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.app-confirm-card {
+  width: min(440px, 100%);
+  background: #141416;
+  border: 1px solid #36363c;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.app-confirm-card p {
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+.app-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.app-confirm-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  cursor: pointer;
+  font-family: "poppins", sans-serif;
+}
+
+.app-confirm-actions .cancel {
+  background: #3b3b42;
+}
+
+.app-confirm-actions .ok {
+  background: #1451f6;
+}

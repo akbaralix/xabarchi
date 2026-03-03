@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { BsSend, BsSearch } from "react-icons/bs";
+import { useSearchParams } from "react-router-dom";
 import { getUser } from "../../services/User";
+import { notifyError, notifySuccess } from "../../../utils/feedback";
 import {
   getConversations,
   getMessages,
@@ -29,11 +31,13 @@ function Messages() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [startUsername, setStartUsername] = useState("");
+  const [searchParams] = useSearchParams();
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const selectedConversationIdRef = useRef("");
   const meChatIdRef = useRef(0);
+  const autoStartDoneRef = useRef(false);
 
   const selectedConversation = useMemo(
     () =>
@@ -170,6 +174,27 @@ function Messages() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const queryUser = String(searchParams.get("user") || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^@/, "");
+    if (!queryUser || autoStartDoneRef.current) return;
+
+    autoStartDoneRef.current = true;
+    setStartUsername(queryUser);
+
+    startConversation(queryUser)
+      .then(async (created) => {
+        await refreshConversations(true);
+        setSelectedConversationId(created._id);
+        notifySuccess(`@${queryUser} bilan chat ochildi`);
+      })
+      .catch((err) => {
+        notifyError(err.message || "Chat ochishda xatolik");
+      });
+  }, [searchParams]);
+
   const handleStartConversation = async () => {
     const username = startUsername.trim().toLowerCase().replace(/^@/, "");
     if (!username) return;
@@ -179,8 +204,9 @@ function Messages() {
       setStartUsername("");
       await refreshConversations(true);
       setSelectedConversationId(created._id);
+      notifySuccess("Chat ochildi");
     } catch (err) {
-      alert(err.message || "Chat ochishda xatolik");
+      notifyError(err.message || "Chat ochishda xatolik");
     }
   };
 
@@ -213,7 +239,7 @@ function Messages() {
           ),
       );
     } catch (err) {
-      alert(err.message || "Xabar yuborishda xatolik");
+      notifyError(err.message || "Xabar yuborishda xatolik");
     } finally {
       setSending(false);
     }

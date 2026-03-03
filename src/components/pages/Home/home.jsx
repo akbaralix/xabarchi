@@ -5,9 +5,28 @@ import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
-import { invalidateCache } from "../../services/cache";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
+
+const formatRelativeTimeUz = (value) => {
+  if (!value) return "hozirgina";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "hozirgina";
+
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+
+  if (minutes < 1) return "hozirgina";
+  if (hours < 1) return `${minutes} daqiqa oldin`;
+  if (days < 1) return `${hours} soat oldin`;
+  if (weeks < 1) return `${days} kun oldin`;
+  if (months < 1) return `${weeks} hafta oldin`;
+  return `${months} oy oldin`;
+};
 
 const mapBackendPost = (item) => ({
   id: item._id || item.id,
@@ -18,12 +37,7 @@ const mapBackendPost = (item) => ({
   like: Number(item.likes ?? item.like ?? 0),
   views: Number(item.views || 0),
   liked: Boolean(item.viewerHasLiked ?? item.liked),
-  createAdd: item.createdAt
-    ? new Date(item.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "hozir",
+  createAdd: formatRelativeTimeUz(item.createdAt),
 });
 
 const ReportModal = ({ postId, onClose }) => {
@@ -128,7 +142,6 @@ function Home() {
             : item,
         ),
       );
-      invalidateCache("posts:feed:");
     } catch (error) {
       setPost(previous);
       alert(error.message || "Like qilishda xatolik");
@@ -153,7 +166,6 @@ function Home() {
             : item,
         ),
       );
-      invalidateCache("posts:feed:");
     } catch {
       viewedPostIdsRef.current.delete(id);
     }
@@ -195,7 +207,12 @@ function Home() {
                 <img src={item.profilePic} alt={item.userName} />
               </div>
               <div className="user-p">
-                <h3>{item.userName}</h3>
+                <h3
+                  onClick={() => navigate(`/${encodeURIComponent(item.userName)}`)}
+                  style={{ cursor: "pointer" }}
+                >
+                  {item.userName}
+                </h3>
                 <p className="user-post__createAdd">{item.createAdd}</p>
               </div>
             </div>

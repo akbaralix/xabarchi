@@ -6,6 +6,7 @@ const postSchema = new mongoose.Schema(
     imageUrl: { type: String, required: true, trim: true },
     userName: { type: String, required: true, trim: true, maxlength: 120 },
     authorChatId: { type: Number, required: true, index: true },
+    profilePic: { type: String, trim: true, default: "" },
     likes: { type: Number, default: 0, min: 0 },
     likedByChatIds: { type: [Number], default: [] },
     views: { type: Number, default: 0, min: 0 },

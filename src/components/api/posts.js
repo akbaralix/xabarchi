@@ -15,6 +15,6 @@ export const getPosts = async () => {
 
   const data = await res.json();
   const normalized = Array.isArray(data) ? data : [];
-  setCached(cacheKey, normalized, 20_000);
+  setCached(cacheKey, normalized, 5 * 60_000);
   return normalized;
 };

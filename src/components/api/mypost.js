@@ -24,7 +24,7 @@ export const getMyPosts = async () => {
   }
 
   const normalized = Array.isArray(data) ? data : [];
-  setCached(cacheKey, normalized, 30_000);
+  setCached(cacheKey, normalized, 5 * 60_000);
   return normalized;
 };
 

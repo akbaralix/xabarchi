@@ -2,7 +2,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   gap: 50px;
   padding: 40px 20px;
   border-bottom: 1px solid #4b4b4b;
@@ -22,6 +21,7 @@
     #962fbf,
     #4f5bd5
   );
+  position: relative;
 }
 
 .pofilePic img {
@@ -35,10 +35,50 @@
   -webkit-user-select: none;
   pointer-events: none;
 }
-
+.profil-photo-addbtn {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: transparent;
+  border: none;
+  font-size: 2rem;
+  color: #797979;
+  cursor: pointer;
+}
+.profile-bio-editcontainer {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  position: absolute;
+  gap: 10px;
+  padding: 10px;
+  z-index: 100;
+  background-color: #121212;
+  border-radius: 10px;
+  max-width: 450px;
+  width: 95%;
+}
 .userName h3 {
   font-size: 22px;
   font-weight: 500;
+}
+.userName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-edit-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid #434343;
+  background: #1f1f1f;
+  color: #f2f2f2;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .post-actions {
@@ -54,6 +94,65 @@
 
 .post-actions span {
   color: #a8a8a8;
+}
+.profile-bio-text {
+  margin-top: 10px;
+  color: #dedede;
+  max-width: 420px;
+  white-space: pre-wrap;
+}
+.profile-bio-edit {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  width: 100%;
+}
+.profile-bio-edit img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.profile-bio-edit textarea {
+  resize: none;
+  min-height: 88px;
+  line-height: 18px;
+  background: #121212;
+  color: #fff;
+  border: 1px solid #3b3b3b;
+  border-radius: 10px;
+  padding: 5px 10px;
+}
+.bio-save-btn {
+  width: fit-content;
+  background: #4f5bd5;
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  margin-top: 20px;
+  padding: 8px;
+  width: 100%;
+  font-family: "poppins";
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.profilePic-edit {
+  position: relative;
+}
+.profilePic-edit button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  background: none;
+}
+.profile-bio-edit button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 .user-posts {
   display: grid;
@@ -94,6 +193,18 @@
   border-top: 1px solid #565656a5;
   border-radius: 2em;
 }
+.post-time-badge {
+  position: absolute;
+  bottom: 3%;
+  left: 3%;
+  background-color: #000000b8;
+  backdrop-filter: blur(15px);
+  color: #fff;
+  font-size: 12px;
+  padding: 0.35em 0.75em;
+  border-top: 1px solid #565656a5;
+  border-radius: 2em;
+}
 .post-delete-btn {
   position: absolute;
   top: 3%;
@@ -120,16 +231,24 @@
 }
 @media screen and (max-width: 750px) {
   .profil-container {
-    justify-content: start;
+    flex-direction: column;
     padding: 10px;
     gap: 20px;
+  }
+  .userActions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .pofilePic {
     width: 100px;
     height: 100px;
+    padding: 2px;
   }
-
+  .pofilePic img {
+    border: 2px solid #000;
+  }
   .userName h3 {
     font-size: 18px;
   }
@@ -137,6 +256,10 @@
   .post-actions {
     justify-content: center;
     gap: 10px;
+  }
+  .profile-bio-text,
+  .profile-bio-edit {
+    max-width: 100%;
   }
   .user-posts {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

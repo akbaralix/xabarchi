@@ -30,6 +30,22 @@ const requireDbConnection = (res) => {
   return true;
 };
 
+const attachProfilePics = async (posts) => {
+  if (!Array.isArray(posts) || posts.length === 0) return [];
+  const chatIds = [...new Set(posts.map((post) => post.authorChatId).filter(Boolean))];
+  if (chatIds.length === 0) return posts;
+
+  const users = await User.find({ chatId: { $in: chatIds } })
+    .select("chatId profilePic")
+    .lean();
+
+  const userPicMap = new Map(users.map((user) => [user.chatId, user.profilePic || ""]));
+  return posts.map((post) => ({
+    ...post,
+    profilePic: userPicMap.get(post.authorChatId) || post.profilePic || "",
+  }));
+};
+
 const createPost = async (req, res) => {
   if (!requireDbConnection(res)) return;
 
@@ -53,7 +69,7 @@ const createPost = async (req, res) => {
     }
 
     const user = await User.findOne({ chatId: req.user.chatId })
-      .select("firstName chatId username")
+      .select("firstName chatId username profilePic")
       .lean();
 
     if (!user) {
@@ -65,6 +81,7 @@ const createPost = async (req, res) => {
       imageUrl: rawImageUrl,
       userName: user.username || user.firstName || "Noma'lum",
       authorChatId: user.chatId,
+      profilePic: user.profilePic || "",
     });
 
     return res.status(201).json(newPost);
@@ -80,7 +97,8 @@ const getPosts = async (req, res) => {
   try {
     const viewerChatId = req.user?.chatId || null;
     const dbPosts = await Post.find().sort({ createdAt: -1 }).limit(100).lean();
-    const prepared = dbPosts.map((post) => {
+    const postsWithProfilePic = await attachProfilePics(dbPosts);
+    const prepared = postsWithProfilePic.map((post) => {
       const likedBy = Array.isArray(post.likedByChatIds) ? post.likedByChatIds : [];
       const viewedBy = Array.isArray(post.viewedByChatIds) ? post.viewedByChatIds : [];
       return {
@@ -107,7 +125,8 @@ const getMyPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(200)
       .lean();
-    const prepared = dbPosts.map((post) => ({
+    const postsWithProfilePic = await attachProfilePics(dbPosts);
+    const prepared = postsWithProfilePic.map((post) => ({
       ...post,
       likes: Array.isArray(post.likedByChatIds) ? post.likedByChatIds.length : post.likes || 0,
       views: Array.isArray(post.viewedByChatIds)

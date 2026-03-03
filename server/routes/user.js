@@ -1,15 +1,26 @@
 import express from "express";
 import User from "../models/User.js";
-import { verifyToken } from "../middleware/auth.js"; // Middleware'ni chaqiramiz
+import Post from "../models/Post.js";
+import { verifyToken } from "../middleware/auth.js";
 
 const userRouter = express.Router();
 
-// Bu route endi xavfsiz! Faqat to'g'ri tokeni borlar kira oladi
+const isValidHttpUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  if (value.startsWith("data:")) return false;
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 userRouter.get("/me", verifyToken, async (req, res) => {
   try {
-    // req.user endi verifyToken'dan kelmoqda
     const user = await User.findOne({ chatId: req.user.chatId }).select(
-      "firstName chatId username",
+      "firstName chatId username profilePic bio",
     );
 
     if (!user)
@@ -19,6 +30,121 @@ userRouter.get("/me", verifyToken, async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
+userRouter.patch("/me/profile", verifyToken, async (req, res) => {
+  try {
+    const rawBio = typeof req.body?.bio === "string" ? req.body.bio : undefined;
+    const rawProfilePic =
+      typeof req.body?.profilePic === "string" ? req.body.profilePic : undefined;
+
+    if (rawBio === undefined && rawProfilePic === undefined) {
+      return res.status(400).json({ message: "bio yoki profilePic yuboring." });
+    }
+
+    const updates = {};
+
+    if (rawBio !== undefined) {
+      const bio = rawBio.trim();
+      if (bio.length > 300) {
+        return res.status(400).json({ message: "Bio 300 belgidan oshmasin." });
+      }
+      updates.bio = bio;
+    }
+
+    if (rawProfilePic !== undefined) {
+      const profilePic = rawProfilePic.trim();
+      if (profilePic && !isValidHttpUrl(profilePic)) {
+        return res.status(400).json({ message: "profilePic URL noto'g'ri." });
+      }
+      updates.profilePic = profilePic;
+    }
+
+    const updated = await User.findOneAndUpdate(
+      { chatId: req.user.chatId },
+      { $set: updates },
+      {
+        new: true,
+        runValidators: true,
+      },
+    ).select("firstName chatId username profilePic bio");
+
+    if (!updated) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    return res.json(updated);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Profilni yangilashda xatolik" });
+  }
+});
+
+userRouter.get("/profile/:username", async (req, res) => {
+  try {
+    const username = String(req.params.username || "")
+      .trim()
+      .toLowerCase();
+
+    if (!username) {
+      return res.status(400).json({ message: "username talab qilinadi." });
+    }
+
+    const user = await User.findOne({ username }).select(
+      "firstName chatId username profilePic bio",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    return res.json(user);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
+userRouter.get("/profile/:username/posts", async (req, res) => {
+  try {
+    const username = String(req.params.username || "")
+      .trim()
+      .toLowerCase();
+
+    if (!username) {
+      return res.status(400).json({ message: "username talab qilinadi." });
+    }
+
+    const user = await User.findOne({ username }).select(
+      "chatId profilePic username firstName",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    const posts = await Post.find({ authorChatId: user.chatId })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+
+    const prepared = posts.map((post) => ({
+      ...post,
+      userName: user.username || user.firstName || post.userName,
+      profilePic: user.profilePic || post.profilePic || "",
+      likes: Array.isArray(post.likedByChatIds)
+        ? post.likedByChatIds.length
+        : post.likes || 0,
+      views: Array.isArray(post.viewedByChatIds)
+        ? post.viewedByChatIds.length
+        : post.views || 0,
+      likedByChatIds: undefined,
+      viewedByChatIds: undefined,
+    }));
+
+    return res.json(prepared);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Postlarni olishda xatolik" });
   }
 });
 
@@ -34,7 +160,7 @@ userRouter.get("/user/:chatId", verifyToken, async (req, res) => {
     }
 
     const user = await User.findOne({ chatId: requestedChatId }).select(
-      "firstName chatId username",
+      "firstName chatId username profilePic bio",
     );
     if (!user) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });

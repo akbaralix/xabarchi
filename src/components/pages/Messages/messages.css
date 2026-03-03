@@ -185,7 +185,8 @@
 
 .chat-empty,
 .empty {
-  color: #9f9fa8;
+  text-align: center;
+  color: #ffffff;
 }
 
 @media (max-width: 900px) {

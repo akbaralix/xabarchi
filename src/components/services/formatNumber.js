@@ -10,3 +10,21 @@ export const formatNumber = (num) => {
   }
   return num;
 };
+
+export const sortMessageLinks = (message) => {
+  if (!message) return "";
+
+  const safeText = String(message)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g;
+
+  return safeText.replace(urlRegex, (url) => {
+    const link = url.startsWith("http") ? url : `https://${url}`;
+    return `<a href="${link}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+};

@@ -84,7 +84,7 @@
 }
 
 .conversation-item {
-  background: #000000;
+  background: #060408;
   border: none;
   border-top: 1px solid #2b2b2f;
   border-radius: 10px;
@@ -95,6 +95,10 @@
   grid-template-columns: 44px 1fr auto;
   gap: 8px;
   cursor: pointer;
+  transition: 0.3s ease;
+}
+.conversation-item:hover {
+  background-color: #121215;
 }
 
 .conversation-item.active {
@@ -112,6 +116,11 @@
 
 .chat-header a {
   color: white;
+}
+.conversation-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .conversation-meta p {
   margin: 4px 0 0;
@@ -184,6 +193,7 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
+  scrollbar-width: none;
   gap: 8px;
 }
 
@@ -230,7 +240,7 @@
   border-top: 1px solid #4d4d4d;
   color: #fff;
   border-radius: 25px;
-  padding: 12px 15px;
+  padding: 15px;
   outline: none;
   font-size: 17px;
 }
@@ -239,6 +249,80 @@
 .empty {
   text-align: center;
   color: #ffffff;
+}
+
+.chat-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.chat-confirm-sheet {
+  max-width: 500px;
+  width: 95%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #17181d;
+  border-radius: 16px;
+  padding: 14px;
+  border-top: 1px solid #2e3138;
+  animation: chatSheetUp 0.2s ease-out;
+}
+
+.chat-confirm-sheet h4 {
+  margin: 0 0 6px;
+  color: #fff;
+  font-size: 17px;
+  font-family: "poppins", sans-serif;
+}
+
+.chat-confirm-sheet p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-family: "poppins", sans-serif;
+}
+
+.chat-confirm-sheet__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.chat-confirm-sheet button {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 15px;
+  font-family: "poppins", sans-serif;
+  cursor: pointer;
+}
+
+.chat-confirm-sheet .danger {
+  background: #ca1d1d;
+  color: #fff;
+}
+
+.chat-confirm-sheet .cancel {
+  background: #252a34;
+  color: #dde1ea;
+}
+
+@keyframes chatSheetUp {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 900px) {

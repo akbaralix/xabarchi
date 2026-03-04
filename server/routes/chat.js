@@ -104,30 +104,43 @@ chatRouter.get("/chats", verifyToken, async (req, res) => {
       .lean();
 
     const userMap = new Map(users.map((user) => [user.chatId, user]));
+    const conversationIds = conversations.map((conversation) => conversation._id);
 
-    const result = await Promise.all(
-      conversations.map(async (conversation) => {
+    const unreadRows = await Message.aggregate([
+      {
+        $match: {
+          conversationId: { $in: conversationIds },
+          senderChatId: { $ne: meChatId },
+          readByChatIds: { $ne: meChatId },
+        },
+      },
+      {
+        $group: {
+          _id: "$conversationId",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const unreadMap = new Map(
+      unreadRows.map((row) => [String(row._id), Number(row.count || 0)]),
+    );
+
+    const result = conversations.map((conversation) => {
         const otherChatId = (conversation.participants || []).find(
           (id) => id !== meChatId,
         );
         const otherUser = userMap.get(otherChatId);
-
-        const unreadCount = await Message.countDocuments({
-          conversationId: conversation._id,
-          senderChatId: { $ne: meChatId },
-          readByChatIds: { $ne: meChatId },
-        });
 
         return {
           _id: conversation._id,
           participants: conversation.participants,
           lastMessage: conversation.lastMessage || "",
           lastMessageAt: conversation.lastMessageAt,
-          unreadCount,
+          unreadCount: unreadMap.get(String(conversation._id)) || 0,
           otherUser: otherUser ? mapUser(otherUser) : null,
         };
-      }),
-    );
+      });
 
     return res.json(result);
   } catch (err) {
@@ -157,14 +170,16 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
       .lean();
     const userMap = new Map(users.map((user) => [user.chatId, user]));
 
-    await Message.updateMany(
+    Message.updateMany(
       {
         conversationId: conversation._id,
         senderChatId: { $ne: req.user.chatId },
         readByChatIds: { $ne: req.user.chatId },
       },
       { $addToSet: { readByChatIds: req.user.chatId } },
-    );
+    ).catch((error) => {
+      console.log("Read status update xatoligi:", error);
+    });
 
     return res.json(
       messages.map((item) => mapMessage(item, userMap.get(item.senderChatId))),
@@ -179,6 +194,7 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
   try {
     const { conversationId } = req.params;
     const text = String(req.body?.text || "").trim();
+    const clientMessageId = String(req.body?.clientMessageId || "").trim();
     if (!text) {
       return res.status(400).json({ message: "Xabar matni bo'sh" });
     }
@@ -195,15 +211,15 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
       readByChatIds: [req.user.chatId],
     });
 
-    conversation.lastMessage = text;
-    conversation.lastMessageAt = created.createdAt;
-    await conversation.save();
-
-    const sender = await User.findOne({ chatId: req.user.chatId }).select(
-      "chatId username firstName profilePic",
+    await Conversation.updateOne(
+      { _id: conversation._id },
+      { $set: { lastMessage: text, lastMessageAt: created.createdAt } },
     );
 
-    const payload = mapMessage(created.toObject(), sender);
+    const payload = {
+      ...mapMessage(created.toObject(), null),
+      clientMessageId: clientMessageId || undefined,
+    };
 
     const io = req.app.get("io");
     io.to(`conversation:${conversation._id}`).emit("chat:new-message", payload);
@@ -220,6 +236,110 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Xabar yuborishda xatolik" });
+  }
+});
+
+chatRouter.delete(
+  "/chats/:conversationId/messages/:messageId",
+  verifyToken,
+  async (req, res) => {
+    try {
+      const { conversationId, messageId } = req.params;
+      const conversation = await getConversationForUser(
+        conversationId,
+        req.user.chatId,
+      );
+      if (!conversation) {
+        return res.status(404).json({ message: "Chat topilmadi" });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(messageId)) {
+        return res.status(400).json({ message: "messageId noto'g'ri" });
+      }
+
+      const message = await Message.findOne({
+        _id: messageId,
+        conversationId: conversation._id,
+      });
+      if (!message) {
+        return res.status(404).json({ message: "Xabar topilmadi" });
+      }
+
+      if (message.senderChatId !== req.user.chatId) {
+        return res
+          .status(403)
+          .json({ message: "Faqat o'zingiz yuborgan xabarni o'chira olasiz" });
+      }
+
+      await Message.deleteOne({ _id: message._id });
+
+      const latest = await Message.findOne({ conversationId: conversation._id })
+        .sort({ createdAt: -1 })
+        .select("text createdAt")
+        .lean();
+
+      const lastMessage = latest?.text || "";
+      const lastMessageAt = latest?.createdAt || conversation.createdAt;
+
+      await Conversation.updateOne(
+        { _id: conversation._id },
+        { $set: { lastMessage, lastMessageAt } },
+      );
+
+      const io = req.app.get("io");
+      io.to(`conversation:${conversation._id}`).emit("chat:message-deleted", {
+        conversationId: String(conversation._id),
+        messageId: String(message._id),
+        lastMessage,
+        lastMessageAt,
+      });
+
+      conversation.participants.forEach((chatId) => {
+        io.to(`user:${chatId}`).emit("chat:conversation-updated", {
+          conversationId: String(conversation._id),
+        });
+      });
+
+      return res.json({
+        ok: true,
+        conversationId: String(conversation._id),
+        messageId: String(message._id),
+        lastMessage,
+        lastMessageAt,
+      });
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ message: "Xabarni o'chirishda xatolik" });
+    }
+  },
+);
+
+chatRouter.delete("/chats/:conversationId", verifyToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const conversation = await getConversationForUser(conversationId, req.user.chatId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Chat topilmadi" });
+    }
+
+    await Message.deleteMany({ conversationId: conversation._id });
+    await Conversation.deleteOne({ _id: conversation._id });
+
+    const io = req.app.get("io");
+    io.to(`conversation:${conversation._id}`).emit("chat:conversation-deleted", {
+      conversationId: String(conversation._id),
+    });
+
+    conversation.participants.forEach((chatId) => {
+      io.to(`user:${chatId}`).emit("chat:conversation-updated", {
+        conversationId: String(conversation._id),
+      });
+    });
+
+    return res.json({ ok: true, conversationId: String(conversation._id) });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Chatni o'chirishda xatolik" });
   }
 });
 

@@ -6,7 +6,11 @@ import { IoSend } from "react-icons/io5";
 import { useSearchParams } from "react-router-dom";
 import { getUser } from "../../services/User";
 import { notifyError, notifySuccess } from "../../../utils/feedback";
+import { getCached, setCached } from "../../services/cache";
+import { sortMessageLinks } from "../../services/formatNumber";
 import {
+  deleteConversation,
+  deleteMessage,
   getConversations,
   getMessages,
   getSocketBase,
@@ -16,6 +20,18 @@ import {
 import "./messages.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
+const UI_CACHE_TTL = 5 * 60_000;
+
+const getUiCacheKey = () =>
+  `chat:ui:${localStorage.getItem("UserToken") || "guest"}`;
+
+const readUiCache = () => {
+  const cached = getCached(getUiCacheKey());
+  if (!cached || typeof cached !== "object") {
+    return {};
+  }
+  return cached;
+};
 
 const formatTime = (value) => {
   if (!value) return "";
@@ -29,14 +45,28 @@ const isMobileScreen = () =>
   window.matchMedia("(max-width: 900px)").matches;
 
 function Messages() {
-  const [me, setMe] = useState(null);
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversationId, setSelectedConversationId] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [startUsername, setStartUsername] = useState("");
+  const initialUiState = readUiCache();
+
+  const [me, setMe] = useState(initialUiState.me || null);
+  const [conversations, setConversations] = useState(
+    Array.isArray(initialUiState.conversations)
+      ? initialUiState.conversations
+      : [],
+  );
+  const [selectedConversationId, setSelectedConversationId] = useState(
+    initialUiState.selectedConversationId || "",
+  );
+  const [messages, setMessages] = useState(
+    Array.isArray(initialUiState.messages) ? initialUiState.messages : [],
+  );
+  const [text, setText] = useState(initialUiState.text || "");
+  const [loading, setLoading] = useState(
+    !(initialUiState.me || initialUiState.conversations?.length),
+  );
+  const [startUsername, setStartUsername] = useState(
+    initialUiState.startUsername || "",
+  );
+  const [confirmAction, setConfirmAction] = useState(null);
   const [searchParams] = useSearchParams();
 
   const socketRef = useRef(null);
@@ -44,6 +74,12 @@ function Messages() {
   const selectedConversationIdRef = useRef("");
   const meChatIdRef = useRef(0);
   const autoStartDoneRef = useRef(false);
+  const hasInitialUiRef = useRef(
+    Boolean(initialUiState.me || initialUiState.conversations?.length),
+  );
+  const conversationLongPressTimerRef = useRef(null);
+  const conversationLongPressTriggeredRef = useRef(false);
+  const messageLongPressTimerRef = useRef(null);
 
   const selectedConversation = useMemo(
     () =>
@@ -80,6 +116,28 @@ function Messages() {
   }, [me]);
 
   useEffect(() => {
+    setCached(
+      getUiCacheKey(),
+      {
+        me,
+        conversations,
+        selectedConversationId,
+        messages,
+        text,
+        startUsername,
+      },
+      UI_CACHE_TTL,
+    );
+  }, [
+    me,
+    conversations,
+    selectedConversationId,
+    messages,
+    text,
+    startUsername,
+  ]);
+
+  useEffect(() => {
     const token = localStorage.getItem("UserToken");
     if (!token) return;
 
@@ -87,11 +145,13 @@ function Messages() {
 
     const bootstrap = async () => {
       try {
-        setLoading(true);
+        if (!hasInitialUiRef.current) {
+          setLoading(true);
+        }
         const meData = await getUser();
         if (!active) return;
         setMe(meData);
-        await refreshConversations(false);
+        await refreshConversations(!hasInitialUiRef.current);
       } catch (err) {
         console.error(err);
       } finally {
@@ -103,6 +163,8 @@ function Messages() {
 
     const socket = io(getSocketBase(), {
       auth: { token },
+      transports: ["websocket", "polling"],
+      rememberUpgrade: true,
     });
     socketRef.current = socket;
 
@@ -117,6 +179,18 @@ function Messages() {
         if (prev.some((item) => String(item._id) === String(incoming._id))) {
           return prev;
         }
+
+        if (incoming.clientMessageId) {
+          const tempIndex = prev.findIndex(
+            (item) => item.clientMessageId === incoming.clientMessageId,
+          );
+          if (tempIndex >= 0) {
+            const next = [...prev];
+            next[tempIndex] = incoming;
+            return next;
+          }
+        }
+
         return [...prev, incoming];
       });
 
@@ -129,9 +203,11 @@ function Messages() {
                   lastMessage: incoming.text,
                   lastMessageAt: incoming.createdAt,
                   unreadCount:
-                    incoming.senderChatId !== meChatIdRef.current
+                    incoming.senderChatId !== meChatIdRef.current &&
+                    String(conversation._id) !==
+                      String(selectedConversationIdRef.current)
                       ? (conversation.unreadCount || 0) + 1
-                      : conversation.unreadCount || 0,
+                      : 0,
                 }
               : conversation,
           )
@@ -143,6 +219,44 @@ function Messages() {
 
     socket.on("chat:conversation-updated", () => {
       refreshConversations(true).catch(() => {});
+    });
+
+    socket.on("chat:message-deleted", (payload) => {
+      const conversationId = String(payload?.conversationId || "");
+      const messageId = String(payload?.messageId || "");
+      if (!conversationId || !messageId) return;
+
+      if (String(selectedConversationIdRef.current) === conversationId) {
+        setMessages((prev) =>
+          prev.filter((item) => String(item._id) !== messageId),
+        );
+      }
+
+      setConversations((prev) =>
+        prev.map((item) =>
+          String(item._id) === conversationId
+            ? {
+                ...item,
+                lastMessage: payload?.lastMessage || "",
+                lastMessageAt: payload?.lastMessageAt || item.lastMessageAt,
+              }
+            : item,
+        ),
+      );
+    });
+
+    socket.on("chat:conversation-deleted", (payload) => {
+      const conversationId = String(payload?.conversationId || "");
+      if (!conversationId) return;
+
+      setConversations((prev) =>
+        prev.filter((item) => String(item._id) !== conversationId),
+      );
+
+      if (String(selectedConversationIdRef.current) === conversationId) {
+        setSelectedConversationId("");
+        setMessages([]);
+      }
     });
 
     return () => {
@@ -220,19 +334,166 @@ function Messages() {
     }
   };
 
+  const clearConversationLongPress = () => {
+    if (conversationLongPressTimerRef.current) {
+      clearTimeout(conversationLongPressTimerRef.current);
+      conversationLongPressTimerRef.current = null;
+    }
+  };
+
+  const clearMessageLongPress = () => {
+    if (messageLongPressTimerRef.current) {
+      clearTimeout(messageLongPressTimerRef.current);
+      messageLongPressTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearConversationLongPress();
+      clearMessageLongPress();
+    };
+  }, []);
+
+  const startConversationLongPress = (conversationId) => () => {
+    conversationLongPressTriggeredRef.current = false;
+    clearConversationLongPress();
+    conversationLongPressTimerRef.current = setTimeout(() => {
+      conversationLongPressTriggeredRef.current = true;
+      setConfirmAction({
+        type: "conversation",
+        conversationId: String(conversationId),
+        title: "Chatni o'chirish",
+        description: "Bu chat va ichidagi xabarlar o'chiriladi.",
+        confirmLabel: "Chatni o'chirish",
+      });
+    }, 650);
+  };
+
+  const startMessageLongPress = (messageId) => () => {
+    clearMessageLongPress();
+    messageLongPressTimerRef.current = setTimeout(() => {
+      if (!selectedConversationId) return;
+
+      setConfirmAction({
+        type: "message",
+        conversationId: String(selectedConversationId),
+        messageId: String(messageId),
+        title: "Xabarni o'chirish",
+        description: "Bu xabar qaytarib bo'lmaydigan tarzda o'chiriladi.",
+        confirmLabel: "Xabarni o'chirish",
+      });
+    }, 650);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmAction) return;
+
+    if (confirmAction.type === "conversation") {
+      try {
+        await deleteConversation(confirmAction.conversationId);
+        setConversations((prev) =>
+          prev.filter(
+            (item) => String(item._id) !== String(confirmAction.conversationId),
+          ),
+        );
+        if (
+          String(selectedConversationIdRef.current) ===
+          String(confirmAction.conversationId)
+        ) {
+          setSelectedConversationId("");
+          setMessages([]);
+        }
+        notifySuccess("Chat o'chirildi");
+      } catch (err) {
+        notifyError(err.message || "Chatni o'chirishda xatolik");
+      } finally {
+        setConfirmAction(null);
+      }
+      return;
+    }
+
+    if (
+      confirmAction.type === "message" &&
+      confirmAction.conversationId &&
+      confirmAction.messageId
+    ) {
+      try {
+        const deleted = await deleteMessage(
+          confirmAction.conversationId,
+          confirmAction.messageId,
+        );
+        setMessages((prev) =>
+          prev.filter(
+            (item) => String(item._id) !== String(confirmAction.messageId),
+          ),
+        );
+        setConversations((prev) =>
+          prev.map((item) =>
+            String(item._id) === String(confirmAction.conversationId)
+              ? {
+                  ...item,
+                  lastMessage: deleted?.lastMessage || "",
+                  lastMessageAt: deleted?.lastMessageAt || item.lastMessageAt,
+                }
+              : item,
+          ),
+        );
+        notifySuccess("Xabar o'chirildi");
+      } catch (err) {
+        notifyError(err.message || "Xabarni o'chirishda xatolik");
+      } finally {
+        setConfirmAction(null);
+      }
+    }
+  };
+
   const handleSend = async () => {
     const content = text.trim();
-    if (!content || !selectedConversationId || sending) return;
+    if (!content || !selectedConversationId) return;
 
-    setSending(true);
+    const clientMessageId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tempMessage = {
+      _id: clientMessageId,
+      conversationId: selectedConversationId,
+      text: content,
+      senderChatId: meChatIdRef.current,
+      createdAt: new Date().toISOString(),
+      clientMessageId,
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
+    setText("");
+    setConversations((prev) =>
+      prev
+        .map((item) =>
+          String(item._id) === String(selectedConversationId)
+            ? {
+                ...item,
+                lastMessage: content,
+                lastMessageAt: tempMessage.createdAt,
+              }
+            : item,
+        )
+        .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)),
+    );
+
     try {
-      const sent = await sendMessage(selectedConversationId, content);
-      setMessages((prev) =>
-        prev.some((item) => String(item._id) === String(sent._id))
-          ? prev
-          : [...prev, sent],
+      const sent = await sendMessage(
+        selectedConversationId,
+        content,
+        clientMessageId,
       );
-      setText("");
+      setMessages((prev) =>
+        prev
+          .map((item) =>
+            item.clientMessageId === clientMessageId ? sent : item,
+          )
+          .filter((item, index, arr) => {
+            const id = String(item._id);
+            return arr.findIndex((x) => String(x._id) === id) === index;
+          }),
+      );
       setConversations((prev) =>
         prev
           .map((item) =>
@@ -249,9 +510,10 @@ function Messages() {
           ),
       );
     } catch (err) {
+      setMessages((prev) =>
+        prev.filter((item) => item.clientMessageId !== clientMessageId),
+      );
       notifyError(err.message || "Xabar yuborishda xatolik");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -291,7 +553,19 @@ function Messages() {
                   ? "active"
                   : ""
               }`}
-              onClick={() => setSelectedConversationId(conversation._id)}
+              onClick={() => {
+                if (conversationLongPressTriggeredRef.current) {
+                  conversationLongPressTriggeredRef.current = false;
+                  return;
+                }
+                setSelectedConversationId(conversation._id);
+              }}
+              onMouseDown={startConversationLongPress(conversation._id)}
+              onMouseUp={clearConversationLongPress}
+              onMouseLeave={clearConversationLongPress}
+              onTouchStart={startConversationLongPress(conversation._id)}
+              onTouchEnd={clearConversationLongPress}
+              onTouchCancel={clearConversationLongPress}
             >
               <img
                 src={conversation.otherUser?.profilePic || DEFAULT_AVATAR}
@@ -357,8 +631,22 @@ function Messages() {
                   <div
                     key={item._id}
                     className={`message-item ${mine ? "mine" : ""}`}
+                    onMouseDown={
+                      mine ? startMessageLongPress(item._id) : undefined
+                    }
+                    onMouseUp={mine ? clearMessageLongPress : undefined}
+                    onMouseLeave={mine ? clearMessageLongPress : undefined}
+                    onTouchStart={
+                      mine ? startMessageLongPress(item._id) : undefined
+                    }
+                    onTouchEnd={mine ? clearMessageLongPress : undefined}
+                    onTouchCancel={mine ? clearMessageLongPress : undefined}
                   >
-                    <p>{item.text}</p>
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: sortMessageLinks(item.text),
+                      }}
+                    />
                     <span>{formatTime(item.createdAt)}</span>
                   </div>
                 );
@@ -378,7 +666,7 @@ function Messages() {
               <button
                 className="message-send-btn"
                 onClick={handleSend}
-                disabled={sending || !text.trim()}
+                disabled={!text.trim()}
               >
                 <IoSend />
               </button>
@@ -390,6 +678,37 @@ function Messages() {
           </div>
         )}
       </section>
+
+      {confirmAction ? (
+        <div
+          className="chat-confirm-overlay"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="chat-confirm-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4>{confirmAction.title}</h4>
+            <p>{confirmAction.description}</p>
+            <div className="chat-confirm-sheet__btn">
+              <button
+                type="button"
+                className="danger"
+                onClick={handleConfirmDelete}
+              >
+                {confirmAction.confirmLabel}
+              </button>
+              <button
+                type="button"
+                className="cancel"
+                onClick={() => setConfirmAction(null)}
+              >
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

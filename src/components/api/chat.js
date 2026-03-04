@@ -8,7 +8,7 @@ const getToken = () => localStorage.getItem("UserToken");
 const buildAuthHeaders = () => {
   const token = getToken();
   if (!token) {
-    throw new Error("Login talab qilinadi");
+    window.location.href = "/login";
   }
   return {
     "Content-Type": "application/json",

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { BsSend, BsSearch } from "react-icons/bs";
+import { BsSearch, BsArrowLeft } from "react-icons/bs";
+import { IoSend } from "react-icons/io5";
+
 import { useSearchParams } from "react-router-dom";
 import { getUser } from "../../services/User";
 import { notifyError, notifySuccess } from "../../../utils/feedback";
@@ -21,6 +23,10 @@ const formatTime = (value) => {
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
+
+const isMobileScreen = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(max-width: 900px)").matches;
 
 function Messages() {
   const [me, setMe] = useState(null);
@@ -52,11 +58,15 @@ function Messages() {
     setConversations(data);
 
     if (!preserveSelection) {
-      setSelectedConversationId(data[0]?._id || "");
+      setSelectedConversationId(isMobileScreen() ? "" : data[0]?._id || "");
       return;
     }
 
-    if (!selectedConversationIdRef.current && data[0]?._id) {
+    if (
+      !selectedConversationIdRef.current &&
+      data[0]?._id &&
+      !isMobileScreen()
+    ) {
       setSelectedConversationId(data[0]._id);
     }
   };
@@ -254,7 +264,11 @@ function Messages() {
   }
 
   return (
-    <div className="messages-layout">
+    <div
+      className={`messages-layout ${
+        selectedConversation ? "has-selected-chat" : ""
+      }`}
+    >
       <aside className="chat-sidebar">
         <h3>Xabarlar</h3>
         <div className="chat-start-row">
@@ -310,6 +324,14 @@ function Messages() {
         {selectedConversation ? (
           <>
             <header className="chat-header">
+              <button
+                type="button"
+                className="chat-back-btn"
+                onClick={() => setSelectedConversationId("")}
+                aria-label="Orqaga"
+              >
+                <BsArrowLeft />
+              </button>
               <img
                 src={
                   selectedConversation.otherUser?.profilePic || DEFAULT_AVATAR
@@ -353,8 +375,12 @@ function Messages() {
                   if (e.key === "Enter") handleSend();
                 }}
               />
-              <button onClick={handleSend} disabled={sending || !text.trim()}>
-                <BsSend />
+              <button
+                className="message-send-btn"
+                onClick={handleSend}
+                disabled={sending || !text.trim()}
+              >
+                <IoSend />
               </button>
             </div>
           </>

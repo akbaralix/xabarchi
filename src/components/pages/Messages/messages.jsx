@@ -317,11 +317,13 @@ function Messages() {
                 alt="chat user"
               />
               <div>
-                <strong>
-                  @
-                  {selectedConversation.otherUser?.username ||
-                    selectedConversation.otherUser?.firstName}
-                </strong>
+                <a href={`/@${selectedConversation.otherUser?.username}`}>
+                  <strong>
+                    @
+                    {selectedConversation.otherUser?.username ||
+                      selectedConversation.otherUser?.firstName}
+                  </strong>
+                </a>
                 <p>online</p>
               </div>
             </header>

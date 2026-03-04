@@ -22,6 +22,7 @@
     #4f5bd5
   );
   position: relative;
+  cursor: pointer;
 }
 
 .pofilePic img {
@@ -240,6 +241,45 @@
 .no-posts {
   padding: 24px;
   color: #b0b0b0;
+}
+
+.profile-image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.profile-image-modal-img {
+  /* width: min(92vw, 700px); */
+  width: 300px;
+  height: 300px;
+  max-height: 88vh;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.profile-image-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid #ffffff44;
+  background: #111111cc;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 @media screen and (max-width: 750px) {
   .profil-container {

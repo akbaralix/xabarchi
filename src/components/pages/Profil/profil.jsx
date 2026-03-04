@@ -62,6 +62,15 @@ function Profil() {
   const [savingBio, setSavingBio] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [showProfilePic, setShowProfilePic] = useState(false);
+
+  const handleShowProfilePic = () => {
+    setShowProfilePic(true);
+  };
+
+  const handleCloseProfilePic = () => {
+    setShowProfilePic(false);
+  };
   const fileInputRef = useRef(null);
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
@@ -267,12 +276,12 @@ function Profil() {
   return (
     <div className="profil-wrapper">
       <div className="profil-container">
-        <div className="pofilePic">
-          <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
+        <div className="pofilePic" onClick={handleShowProfilePic}>
+          <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
         </div>
         <div className="userActions">
           <div className="userName">
-            <h3>@{user.username || user.firstName || "foydalanuvchi"}</h3>
+            <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
             {isOwnProfile ? (
               <button
                 className="profile-edit-toggle"
@@ -295,7 +304,9 @@ function Profil() {
             <button
               className="profile-message-btn"
               onClick={() =>
-                navigate(`/messages?user=${encodeURIComponent(user.username || "")}`)
+                navigate(
+                  `/messages?user=${encodeURIComponent(user.username || "")}`,
+                )
               }
             >
               Xabar yuborish
@@ -389,6 +400,24 @@ function Profil() {
           </div>
         )}
       </div>
+      {showProfilePic ? (
+        <div className="profile-image-modal" onClick={handleCloseProfilePic}>
+          <button
+            type="button"
+            className="profile-image-close"
+            onClick={handleCloseProfilePic}
+            aria-label="Yopish"
+          >
+            <FaTimes />
+          </button>
+          <img
+            className="profile-image-modal-img"
+            src={user.profilePic || DEFAULT_AVATAR}
+            alt={user.username || "profile"}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

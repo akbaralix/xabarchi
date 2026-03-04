@@ -6,6 +6,10 @@
   scrollbar-width: thin;
   -webkit-tap-highlight-color: transparent;
 }
+
+:root {
+  background-color: #000;
+}
 body {
   background-color: #000;
   color: rgba(255, 255, 255, 0.87);

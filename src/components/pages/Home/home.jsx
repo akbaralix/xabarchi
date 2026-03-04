@@ -199,7 +199,7 @@ function Home() {
         <div
           className="post-item"
           key={item.id}
-          data-post-id={item.id}
+          // data-post-id={item.id}
           ref={observePost}
         >
           <div className="user-actions">
@@ -209,7 +209,9 @@ function Home() {
               </div>
               <div className="user-p">
                 <h3
-                  onClick={() => navigate(`/${encodeURIComponent(item.userName)}`)}
+                  onClick={() =>
+                    navigate(`/${encodeURIComponent(item.userName)}`)
+                  }
                   style={{ cursor: "pointer" }}
                 >
                   {item.userName}

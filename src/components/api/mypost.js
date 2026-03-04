@@ -1,4 +1,5 @@
 import { getCached, invalidateCache, setCached } from "../services/cache";
+import { normalizeImageUrl } from "../services/imageUrl";
 
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
@@ -23,7 +24,14 @@ export const getMyPosts = async () => {
     throw new Error(data.message || "Postlarni olishda xatolik yuz berdi");
   }
 
-  const normalized = Array.isArray(data) ? data : [];
+  const normalized = Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        imageUrl: normalizeImageUrl(item?.imageUrl || item?.image),
+        image: normalizeImageUrl(item?.image || item?.imageUrl),
+        profilePic: normalizeImageUrl(item?.profilePic),
+      }))
+    : [];
   setCached(cacheKey, normalized, 5 * 60_000);
   return normalized;
 };

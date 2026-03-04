@@ -1,4 +1,5 @@
 import { getCached, invalidateCache, setCached } from "./cache";
+import { normalizeImageUrl } from "./imageUrl";
 
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
@@ -21,8 +22,12 @@ export const getUser = async () => {
 
     if (!res.ok) return null;
     const data = await res.json();
-    setCached(cacheKey, data, 5 * 60_000);
-    return data;
+    const normalized = {
+      ...data,
+      profilePic: normalizeImageUrl(data?.profilePic),
+    };
+    setCached(cacheKey, normalized, 5 * 60_000);
+    return normalized;
   } catch {
     return null;
   }
@@ -46,10 +51,15 @@ export const updateUserProfile = async ({ profilePic, bio }) => {
     throw new Error(data.message || "Profilni yangilashda xatolik");
   }
 
+  const normalized = {
+    ...data,
+    profilePic: normalizeImageUrl(data?.profilePic),
+  };
+
   invalidateCache("user:");
   invalidateCache("posts:");
-  setCached(`user:${token}`, data, 5 * 60_000);
-  return data;
+  setCached(`user:${token}`, normalized, 5 * 60_000);
+  return normalized;
 };
 
 export const getUserByUsername = async (username) => {
@@ -69,8 +79,13 @@ export const getUserByUsername = async (username) => {
   const data = await response.json().catch(() => null);
   if (!data) return null;
 
-  setCached(cacheKey, data, 5 * 60_000);
-  return data;
+  const normalizedData = {
+    ...data,
+    profilePic: normalizeImageUrl(data?.profilePic),
+  };
+
+  setCached(cacheKey, normalizedData, 5 * 60_000);
+  return normalizedData;
 };
 
 export const getUserPostsByUsername = async (username) => {
@@ -90,7 +105,14 @@ export const getUserPostsByUsername = async (username) => {
   if (!response.ok) return [];
 
   const data = await response.json().catch(() => []);
-  const normalizedData = Array.isArray(data) ? data : [];
+  const normalizedData = Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        imageUrl: normalizeImageUrl(item?.imageUrl || item?.image),
+        image: normalizeImageUrl(item?.image || item?.imageUrl),
+        profilePic: normalizeImageUrl(item?.profilePic),
+      }))
+    : [];
   setCached(cacheKey, normalizedData, 5 * 60_000);
   return normalizedData;
 };

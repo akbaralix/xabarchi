@@ -1,3 +1,5 @@
+import { normalizeImageUrl } from "../services/imageUrl";
+
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
@@ -22,7 +24,17 @@ export const getConversations = async () => {
   if (!response.ok) {
     throw new Error(data.message || "Chat ro'yxatini olishda xatolik");
   }
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        otherUser: item?.otherUser
+          ? {
+              ...item.otherUser,
+              profilePic: normalizeImageUrl(item.otherUser.profilePic),
+            }
+          : item?.otherUser,
+      }))
+    : [];
 };
 
 export const startConversation = async (username) => {

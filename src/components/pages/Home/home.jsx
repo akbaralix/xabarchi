@@ -199,7 +199,7 @@ function Home() {
         <div
           className="post-item"
           key={item.id}
-          // data-post-id={item.id}
+          data-post-id={item.id}
           ref={observePost}
         >
           <div className="user-actions">

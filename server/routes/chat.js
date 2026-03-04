@@ -19,6 +19,9 @@ const mapMessage = (message, sender) => ({
   conversationId: message.conversationId,
   text: message.text,
   senderChatId: message.senderChatId,
+  readByChatIds: Array.isArray(message.readByChatIds)
+    ? message.readByChatIds
+    : [],
   sender: sender ? mapUser(sender) : null,
   createdAt: message.createdAt,
   updatedAt: message.updatedAt,
@@ -177,9 +180,19 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
         readByChatIds: { $ne: req.user.chatId },
       },
       { $addToSet: { readByChatIds: req.user.chatId } },
-    ).catch((error) => {
-      console.log("Read status update xatoligi:", error);
-    });
+    )
+      .then((result) => {
+        if ((result.modifiedCount || 0) <= 0) return;
+        const io = req.app.get("io");
+        io.to(`conversation:${conversation._id}`).emit("chat:messages-read", {
+          conversationId: String(conversation._id),
+          readerChatId: req.user.chatId,
+          readAll: true,
+        });
+      })
+      .catch((error) => {
+        console.log("Read status update xatoligi:", error);
+      });
 
     return res.json(
       messages.map((item) => mapMessage(item, userMap.get(item.senderChatId))),

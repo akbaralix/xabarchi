@@ -6,11 +6,13 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import router from "./routes/autoh.js";
 import userRouter from "./routes/user.js";
 import postRouter from "./routes/post.js";
 import chatRouter from "./routes/chat.js";
 import Conversation from "./models/Conversation.js";
+import Message from "./models/Message.js";
 
 dotenv.config();
 
@@ -141,6 +143,55 @@ io.on("connection", (socket) => {
   socket.on("chat:leave", ({ conversationId }) => {
     if (!conversationId) return;
     socket.leave(`conversation:${conversationId}`);
+  });
+
+  socket.on("chat:typing", ({ conversationId }) => {
+    if (!conversationId || !chatId) return;
+    const room = `conversation:${conversationId}`;
+    if (!socket.rooms.has(room)) return;
+    socket.to(room).emit("chat:typing", {
+      conversationId: String(conversationId),
+      chatId,
+    });
+  });
+
+  socket.on("chat:stop-typing", ({ conversationId }) => {
+    if (!conversationId || !chatId) return;
+    const room = `conversation:${conversationId}`;
+    if (!socket.rooms.has(room)) return;
+    socket.to(room).emit("chat:stop-typing", {
+      conversationId: String(conversationId),
+      chatId,
+    });
+  });
+
+  socket.on("chat:read", async ({ conversationId, messageId }) => {
+    if (!conversationId || !messageId || !chatId) return;
+    const room = `conversation:${conversationId}`;
+    if (!socket.rooms.has(room)) return;
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return;
+
+    try {
+      const result = await Message.updateOne(
+        {
+          _id: messageId,
+          conversationId,
+          senderChatId: { $ne: chatId },
+          readByChatIds: { $ne: chatId },
+        },
+        { $addToSet: { readByChatIds: chatId } },
+      );
+
+      if ((result.modifiedCount || 0) > 0) {
+        io.to(room).emit("chat:messages-read", {
+          conversationId: String(conversationId),
+          messageIds: [String(messageId)],
+          readerChatId: chatId,
+        });
+      }
+    } catch (err) {
+      console.log("chat:read xatoligi:", err);
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { BsSearch, BsArrowLeft } from "react-icons/bs";
+import { BsSearch, BsArrowLeft, BsCheck, BsCheckAll } from "react-icons/bs";
 import { IoSend } from "react-icons/io5";
 
 import { useSearchParams } from "react-router-dom";
@@ -67,6 +67,9 @@ function Messages() {
     initialUiState.startUsername || "",
   );
   const [confirmAction, setConfirmAction] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [socketReconnecting, setSocketReconnecting] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [searchParams] = useSearchParams();
 
   const socketRef = useRef(null);
@@ -80,6 +83,8 @@ function Messages() {
   const conversationLongPressTimerRef = useRef(null);
   const conversationLongPressTriggeredRef = useRef(false);
   const messageLongPressTimerRef = useRef(null);
+  const stopTypingTimerRef = useRef(null);
+  const typingHideTimerRef = useRef(null);
 
   const selectedConversation = useMemo(
     () =>
@@ -88,6 +93,10 @@ function Messages() {
       ) || null,
     [conversations, selectedConversationId],
   );
+
+  const isMessageReadByOther = (item) =>
+    Array.isArray(item?.readByChatIds) &&
+    item.readByChatIds.some((id) => Number(id) !== meChatIdRef.current);
 
   const refreshConversations = async (preserveSelection = true) => {
     const data = await getConversations();
@@ -168,7 +177,36 @@ function Messages() {
     });
     socketRef.current = socket;
 
+    socket.on("connect", () => {
+      setSocketConnected(true);
+      setSocketReconnecting(false);
+    });
+
+    socket.on("disconnect", () => {
+      setSocketConnected(false);
+    });
+
+    socket.io.on("reconnect_attempt", () => {
+      setSocketReconnecting(true);
+    });
+
+    socket.io.on("reconnect", () => {
+      setSocketConnected(true);
+      setSocketReconnecting(false);
+    });
+
     socket.on("chat:new-message", (incoming) => {
+      if (
+        incoming?.senderChatId !== meChatIdRef.current &&
+        String(incoming?.conversationId) ===
+          String(selectedConversationIdRef.current)
+      ) {
+        socket.emit("chat:read", {
+          conversationId: incoming.conversationId,
+          messageId: incoming._id,
+        });
+      }
+
       setMessages((prev) => {
         if (
           String(incoming.conversationId) !==
@@ -221,6 +259,73 @@ function Messages() {
       refreshConversations(true).catch(() => {});
     });
 
+    socket.on("chat:typing", (payload) => {
+      if (
+        String(payload?.conversationId) !==
+        String(selectedConversationIdRef.current)
+      ) {
+        return;
+      }
+      if (Number(payload?.chatId) === meChatIdRef.current) return;
+      setIsOtherTyping(true);
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
+      typingHideTimerRef.current = setTimeout(() => {
+        setIsOtherTyping(false);
+      }, 1600);
+    });
+
+    socket.on("chat:stop-typing", (payload) => {
+      if (
+        String(payload?.conversationId) !==
+        String(selectedConversationIdRef.current)
+      ) {
+        return;
+      }
+      if (Number(payload?.chatId) === meChatIdRef.current) return;
+      setIsOtherTyping(false);
+    });
+
+    socket.on("chat:messages-read", (payload) => {
+      if (
+        String(payload?.conversationId) !==
+        String(selectedConversationIdRef.current)
+      ) {
+        return;
+      }
+      if (Number(payload?.readerChatId) === meChatIdRef.current) return;
+
+      setMessages((prev) =>
+        prev.map((item) => {
+          if (item.senderChatId !== meChatIdRef.current) return item;
+          if (payload?.readAll) {
+            if (isMessageReadByOther(item)) return item;
+            return {
+              ...item,
+              readByChatIds: [
+                ...(item.readByChatIds || []),
+                payload.readerChatId,
+              ],
+            };
+          }
+
+          const ids = Array.isArray(payload?.messageIds)
+            ? payload.messageIds
+            : [];
+          if (!ids.includes(String(item._id))) return item;
+          if (isMessageReadByOther(item)) return item;
+          return {
+            ...item,
+            readByChatIds: [
+              ...(item.readByChatIds || []),
+              payload.readerChatId,
+            ],
+          };
+        }),
+      );
+    });
+
     socket.on("chat:message-deleted", (payload) => {
       const conversationId = String(payload?.conversationId || "");
       const messageId = String(payload?.messageId || "");
@@ -261,12 +366,20 @@ function Messages() {
 
     return () => {
       active = false;
+      if (stopTypingTimerRef.current) {
+        clearTimeout(stopTypingTimerRef.current);
+      }
+      if (typingHideTimerRef.current) {
+        clearTimeout(typingHideTimerRef.current);
+      }
       socket.disconnect();
     };
   }, []);
 
   useEffect(() => {
     if (!selectedConversationId) return;
+
+    setIsOtherTyping(false);
 
     getMessages(selectedConversationId)
       .then((data) => {
@@ -288,6 +401,13 @@ function Messages() {
     });
 
     return () => {
+      socketRef.current?.emit("chat:stop-typing", {
+        conversationId: selectedConversationId,
+      });
+      if (stopTypingTimerRef.current) {
+        clearTimeout(stopTypingTimerRef.current);
+        stopTypingTimerRef.current = null;
+      }
       socketRef.current?.emit("chat:leave", {
         conversationId: selectedConversationId,
       });
@@ -452,6 +572,14 @@ function Messages() {
     const content = text.trim();
     if (!content || !selectedConversationId) return;
 
+    socketRef.current?.emit("chat:stop-typing", {
+      conversationId: selectedConversationId,
+    });
+    if (stopTypingTimerRef.current) {
+      clearTimeout(stopTypingTimerRef.current);
+      stopTypingTimerRef.current = null;
+    }
+
     const clientMessageId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const tempMessage = {
       _id: clientMessageId,
@@ -460,6 +588,7 @@ function Messages() {
       senderChatId: meChatIdRef.current,
       createdAt: new Date().toISOString(),
       clientMessageId,
+      readByChatIds: [meChatIdRef.current],
     };
 
     setMessages((prev) => [...prev, tempMessage]);
@@ -518,6 +647,11 @@ function Messages() {
   };
 
   if (loading) {
+    const UserTokens = localStorage.getItem("UserToken");
+    if (!UserTokens) {
+      window.location.href = "/login";
+      return null;
+    }
     return (
       <div className="messages-layout-p">
         <p>Yuklanmoqda...</p>
@@ -620,7 +754,15 @@ function Messages() {
                       selectedConversation.otherUser?.firstName}
                   </strong>
                 </a>
-                <p>online</p>
+                <p>
+                  {isOtherTyping
+                    ? "yozmoqda..."
+                    : socketConnected
+                      ? "online"
+                      : socketReconnecting
+                        ? "ulanmoqda..."
+                        : "offline"}
+                </p>
               </div>
             </header>
 
@@ -647,7 +789,16 @@ function Messages() {
                         __html: sortMessageLinks(item.text),
                       }}
                     />
-                    <span>{formatTime(item.createdAt)}</span>
+                    <span className="message-meta">
+                      {formatTime(item.createdAt)}
+                      {mine ? (
+                        isMessageReadByOther(item) ? (
+                          <BsCheckAll className="message-status-icon read" />
+                        ) : (
+                          <BsCheck className="message-status-icon sent" />
+                        )
+                      ) : null}
+                    </span>
                   </div>
                 );
               })}
@@ -657,10 +808,43 @@ function Messages() {
             <div className="chat-input-row">
               <input
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setText(next);
+                  if (!selectedConversationId) return;
+
+                  if (next.trim()) {
+                    socketRef.current?.emit("chat:typing", {
+                      conversationId: selectedConversationId,
+                    });
+
+                    if (stopTypingTimerRef.current) {
+                      clearTimeout(stopTypingTimerRef.current);
+                    }
+                    stopTypingTimerRef.current = setTimeout(() => {
+                      socketRef.current?.emit("chat:stop-typing", {
+                        conversationId: selectedConversationId,
+                      });
+                    }, 1200);
+                  } else {
+                    socketRef.current?.emit("chat:stop-typing", {
+                      conversationId: selectedConversationId,
+                    });
+                    if (stopTypingTimerRef.current) {
+                      clearTimeout(stopTypingTimerRef.current);
+                      stopTypingTimerRef.current = null;
+                    }
+                  }
+                }}
                 placeholder="Xabar yozing..."
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSend();
+                }}
+                onBlur={() => {
+                  if (!selectedConversationId) return;
+                  socketRef.current?.emit("chat:stop-typing", {
+                    conversationId: selectedConversationId,
+                  });
                 }}
               />
               <button

@@ -228,6 +228,26 @@
   text-align: right;
 }
 
+.message-meta {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+}
+
+.message-status-icon {
+  font-size: 14px;
+}
+
+.message-status-icon.sent {
+  color: #d7d7df;
+}
+
+.message-status-icon.read {
+  color: #7ec9ff;
+}
+
 .chat-input-row {
   border-top: 1px solid #2d2d2d;
   padding: 10px;

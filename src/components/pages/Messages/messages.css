@@ -115,7 +115,7 @@
 }
 .conversation-meta p {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 13px;
   font-family: "poppins", sans-serif;
   color: #a6a6ac;
   white-space: nowrap;
@@ -146,6 +146,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100vh;
+  z-index: 1010;
+  background-color: #000000;
 }
 
 .chat-header {
@@ -200,7 +203,7 @@
 }
 
 .message-item p {
-  font-size: 18px;
+  font-size: 16px;
   color: #fff;
   line-height: 1.5;
   margin: 0;

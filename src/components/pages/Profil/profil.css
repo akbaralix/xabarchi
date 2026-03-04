@@ -287,6 +287,9 @@
     padding: 10px;
     gap: 20px;
   }
+  .post-container {
+    margin-bottom: 90px;
+  }
   .userActions {
     display: flex;
     flex-direction: column;

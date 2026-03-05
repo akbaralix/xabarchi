@@ -97,8 +97,10 @@
 }
 
 .profile-message-btn {
-  border: 1px solid #2b3543;
-  background: #1a222f;
+  border: none;
+  height: 40px;
+  margin-top: 10px;
+  background: #6939ed;
   color: #fff;
   border-radius: 11px;
   padding: 11px 16px;
@@ -250,12 +252,15 @@
 .post-overlay {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 4px;
   background: transparent;
 }
 
 .post-views {
-  position: absolute;
-  bottom: 1px;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -271,9 +276,7 @@
   font-size: 16px;
 }
 .post-time-badge {
-  position: absolute;
-  right: 8px;
-  bottom: 1px;
+  position: relative;
   font-size: 12px;
   padding: 3px 8px;
   border-radius: 10px;
@@ -359,7 +362,7 @@
   }
 
   .userName h3 {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   .post-actions {
@@ -375,7 +378,8 @@
   }
 
   .profile-bio-block h4 {
-    font-size: 16px;
+    font-size: 13px;
+    line-height: 5px;
   }
 
   .profile-bio-text {
@@ -389,6 +393,8 @@
 
   .profile-message-btn {
     font-size: 14px;
+    height: 36px;
+    margin-top: 12px;
     padding: 10px 12px;
   }
 
@@ -422,11 +428,33 @@
   }
 
   .post-views {
-    font-size: 18px;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+
+  .post-views span {
+    font-size: 12px;
+  }
+
+  .post-views svg {
+    font-size: 14px;
+  }
+
+  .post-time-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 8px;
   }
 
   .post-delete-btn {
-    padding: 6px 8px;
+    top: 3px;
+    right: 3px;
+    padding: 4px 6px;
     font-size: 11px;
+  }
+
+  .post-delete-btn svg {
+    font-size: 16px;
   }
 }

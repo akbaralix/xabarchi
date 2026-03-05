@@ -327,20 +327,20 @@ function Profil() {
                 <span>post</span>
               </div>
             </div>
-            {!isOwnProfile ? (
-              <button
-                className="profile-message-btn"
-                onClick={() =>
-                  navigate(
-                    `/messages?user=${encodeURIComponent(user.username || "")}`,
-                  )
-                }
-              >
-                Xabar yuborish
-              </button>
-            ) : null}
           </div>
         </div>
+        {!isOwnProfile ? (
+          <button
+            className="profile-message-btn"
+            onClick={() =>
+              navigate(
+                `/messages?user=${encodeURIComponent(user.username || "")}`,
+              )
+            }
+          >
+            Xabar yuborish
+          </button>
+        ) : null}
         {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
       </div>
 

@@ -18,6 +18,9 @@ export const getPosts = async () => {
   const normalized = Array.isArray(data)
     ? data.map((item) => ({
         ...item,
+        imageUrls: Array.isArray(item?.imageUrls)
+          ? item.imageUrls.map((url) => normalizeImageUrl(url)).filter(Boolean)
+          : [],
         imageUrl: normalizeImageUrl(item?.imageUrl || item?.image),
         image: normalizeImageUrl(item?.image || item?.imageUrl),
         profilePic: normalizeImageUrl(item?.profilePic),

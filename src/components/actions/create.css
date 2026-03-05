@@ -29,14 +29,25 @@
   padding: 10px 15px;
   font-size: 1rem;
   font-weight: 600;
+  margin-bottom: 20px;
   border-bottom: 1px solid #333;
 }
 
 .create-post__content {
-  margin-top: 3rem;
+  margin-top: 10px;
+  font-family: "poppins", sans-serif;
   font-size: 1.2rem;
   width: 80%;
   text-align: center;
+}
+.create-post__content small {
+  color: #b1b1b1;
+  font-size: 0.8rem;
+  display: block;
+  margin-top: 8px;
+}
+.upload-icon {
+  font-size: 4rem;
 }
 
 .create-post__footer {
@@ -45,13 +56,13 @@
 
 .create-post__footer button {
   padding: 8px 35px;
-
+  font-family: "poppins", sans-serif;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  background-color: #0095f6;
+  background-color: #8f78fd;
   margin-bottom: 20px;
   color: white;
   display: flex;
@@ -72,12 +83,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .preview-box img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+.preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-nav--left {
+  left: 12px;
+}
+.preview-nav--right {
+  right: 12px;
+}
+.preview-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
 }
 
 .caption-box {
@@ -156,10 +199,6 @@ textarea {
   textarea {
     height: 120px;
     font-size: 1rem;
-  }
-
-  .create-post__content {
-    margin-top: 6rem;
   }
 
   .create-post__footer {

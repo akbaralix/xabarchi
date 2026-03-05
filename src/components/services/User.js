@@ -33,7 +33,7 @@ export const getUser = async () => {
   }
 };
 
-export const updateUserProfile = async ({ profilePic, bio }) => {
+export const updateUserProfile = async ({ profilePic, bio, firstName }) => {
   const token = localStorage.getItem("UserToken");
   if (!token) throw new Error("Login talab qilinadi");
 
@@ -43,7 +43,7 @@ export const updateUserProfile = async ({ profilePic, bio }) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ profilePic, bio }),
+    body: JSON.stringify({ profilePic, bio, firstName }),
   });
 
   const data = await response.json().catch(() => ({}));

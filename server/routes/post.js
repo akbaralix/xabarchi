@@ -52,6 +52,11 @@ const createPost = async (req, res) => {
   try {
     const rawTitle = req.body?.title;
     const rawImageUrl = req.body?.imageUrl || req.body?.image;
+    const rawImageUrls = Array.isArray(req.body?.imageUrls)
+      ? req.body.imageUrls
+      : rawImageUrl
+        ? [rawImageUrl]
+        : [];
 
     const title =
       typeof rawTitle === "string" && rawTitle.trim()
@@ -61,10 +66,23 @@ const createPost = async (req, res) => {
       return res.status(400).json({ message: "Izoh 5000 belgidan oshmasligi kerak." });
     }
 
-    if (!isValidHttpUrl(rawImageUrl)) {
+    if (!rawImageUrls.length || rawImageUrls.length > 10) {
+      return res.status(400).json({
+        message: "Bir post uchun 1 tadan 10 tagacha rasm yuborish mumkin.",
+      });
+    }
+
+    const normalizedImageUrls = rawImageUrls
+      .map((url) => (typeof url === "string" ? url.trim() : ""))
+      .filter(Boolean);
+
+    if (
+      normalizedImageUrls.length !== rawImageUrls.length ||
+      normalizedImageUrls.some((url) => !isValidHttpUrl(url))
+    ) {
       return res.status(400).json({
         message:
-          "imageUrl noto'g'ri. Faqat Supabase/public HTTP(S) URL yuboring.",
+          "imageUrl/imageUrls noto'g'ri. Faqat Supabase/public HTTP(S) URL yuboring.",
       });
     }
 
@@ -78,7 +96,8 @@ const createPost = async (req, res) => {
 
     const newPost = await Post.create({
       title,
-      imageUrl: rawImageUrl,
+      imageUrl: normalizedImageUrls[0],
+      imageUrls: normalizedImageUrls,
       userName: user.username || user.firstName || "Noma'lum",
       authorChatId: user.chatId,
       profilePic: user.profilePic || "",

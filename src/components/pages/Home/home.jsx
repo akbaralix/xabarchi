@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FaEllipsisV, FaTimes } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaEllipsisV, FaTimes } from "react-icons/fa";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
@@ -29,17 +29,32 @@ const formatRelativeTimeUz = (value) => {
   return `${months} oy oldin`;
 };
 
-const mapBackendPost = (item) => ({
-  id: item._id || item.id,
-  userName: item.userName || item.UserName || "Siz",
-  profilePic: item.profilePic || DEFAULT_AVATAR,
-  img: item.imageUrl || item.image || item.img,
-  coptions: item.title || item.coptions || "",
-  like: Number(item.likes ?? item.like ?? 0),
-  views: Number(item.views || 0),
-  liked: Boolean(item.viewerHasLiked ?? item.liked),
-  createAdd: formatRelativeTimeUz(item.createdAt),
-});
+const mapBackendPost = (item) => {
+  const images = Array.isArray(item.imageUrls)
+    ? item.imageUrls.filter(Boolean)
+    : Array.isArray(item.images)
+      ? item.images.filter(Boolean)
+      : [];
+  const fallbackImage = item.imageUrl || item.image || item.img;
+  const mergedImages = images.length
+    ? images
+    : fallbackImage
+      ? [fallbackImage]
+      : [];
+
+  return {
+    id: item._id || item.id,
+    userName: item.userName || item.UserName || "Siz",
+    profilePic: item.profilePic || DEFAULT_AVATAR,
+    img: mergedImages[0] || "",
+    images: mergedImages,
+    coptions: item.title || item.coptions || "",
+    like: Number(item.likes ?? item.like ?? 0),
+    views: Number(item.views || 0),
+    liked: Boolean(item.viewerHasLiked ?? item.liked),
+    createAdd: formatRelativeTimeUz(item.createdAt),
+  };
+};
 
 const ReportModal = ({ postId, onClose }) => {
   const reportText = [
@@ -83,9 +98,29 @@ function Home() {
   const [post, setPost] = useState([]);
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
+  const [carouselIndexes, setCarouselIndexes] = useState({});
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
   const navigate = useNavigate();
+
+  const getCurrentImage = (item) => {
+    const images = item.images || [];
+    if (!images.length) return item.img;
+    const current = carouselIndexes[item.id] || 0;
+    return images[current] || images[0];
+  };
+
+  const changeSlide = (postId, total, direction) => {
+    if (total <= 1) return;
+    setCarouselIndexes((prev) => {
+      const current = prev[postId] || 0;
+      const next = (current + direction + total) % total;
+      return {
+        ...prev,
+        [postId]: next,
+      };
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -228,7 +263,28 @@ function Home() {
           </div>
 
           <div className="post-img">
-            <img src={item.img} alt="post content" />
+            <img src={getCurrentImage(item)} alt="post content" />
+            {(item.images || []).length > 1 && (
+              <>
+                <button
+                  className="post-carousel-btn post-carousel-btn--left"
+                  onClick={() => changeSlide(item.id, item.images.length, -1)}
+                  type="button"
+                >
+                  <FaChevronLeft />
+                </button>
+                <button
+                  className="post-carousel-btn post-carousel-btn--right"
+                  onClick={() => changeSlide(item.id, item.images.length, 1)}
+                  type="button"
+                >
+                  <FaChevronRight />
+                </button>
+                <span className="post-carousel-counter">
+                  {(carouselIndexes[item.id] || 0) + 1}/{item.images.length}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="post-bottom">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BsEye, BsCamera } from "react-icons/bs";
+import { BsCamera, BsEye } from "react-icons/bs";
 import { FaPen, FaTimes } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
 import { formatNumber } from "../../services/formatNumber";
@@ -48,6 +48,16 @@ const formatRelativeTimeUz = (value) => {
   return `${months} oy oldin`;
 };
 
+const getPostPreviewImage = (item) => {
+  if (Array.isArray(item?.imageUrls) && item.imageUrls.length > 0) {
+    return item.imageUrls[0];
+  }
+  if (Array.isArray(item?.images) && item.images.length > 0) {
+    return item.images[0];
+  }
+  return item?.imageUrl || item?.image || "";
+};
+
 function Profil() {
   const { username: routeUsername } = useParams();
   const targetUsername = normalizeUsername(routeUsername);
@@ -59,6 +69,7 @@ function Profil() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [bio, setBio] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [savingBio, setSavingBio] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -113,6 +124,7 @@ function Profil() {
         if (!active) return;
         setUser(me);
         setBio(me.bio || "");
+        setFirstName(me.firstName || "");
         setLoading(false);
         return;
       }
@@ -130,6 +142,7 @@ function Profil() {
 
       setUser(profile);
       setBio(profile.bio || "");
+      setFirstName(profile.firstName || "");
       setLoading(false);
     };
 
@@ -248,12 +261,22 @@ function Profil() {
   const handleBioSave = async () => {
     if (!isOwnProfile) return;
 
+    const normalizedFirstName = String(firstName || "").trim();
+    if (!normalizedFirstName) {
+      notifyError("Ism bo'sh bo'lishi mumkin emas");
+      return;
+    }
+
     setSavingBio(true);
     try {
-      const updated = await updateUserProfile({ bio });
+      const updated = await updateUserProfile({
+        firstName: normalizedFirstName,
+        bio,
+      });
       setUser(updated);
       setCurrentUser(updated);
       setBio(updated.bio || "");
+      setFirstName(updated.firstName || "");
       notifySuccess("Bio saqlandi");
       setIsEditOpen(false);
     } catch (err) {
@@ -276,82 +299,104 @@ function Profil() {
   return (
     <div className="profil-wrapper">
       <div className="profil-container">
-        <div className="pofilePic" onClick={handleShowProfilePic}>
-          <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
-        </div>
-        <div className="userActions">
-          <div className="userName">
-            <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
-            {isOwnProfile ? (
+        <div className="profile-top">
+          <div className="pofilePic" onClick={handleShowProfilePic}>
+            <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
+          </div>
+          <div className="userActions">
+            <div className="userName">
+              <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
+              {isOwnProfile ? (
+                <button
+                  className="profile-edit-toggle"
+                  onClick={() => setIsEditOpen((prev) => !prev)}
+                  title={
+                    isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
+                  }
+                >
+                  {isEditOpen ? <FaTimes /> : <FaPen />}
+                </button>
+              ) : null}
+            </div>
+            <div className="profile-bio-block">
+              <h4>{user.firstName || user.username || "Foydalanuvchi"}</h4>
+            </div>
+            <div className="post-actions">
+              <div>
+                <strong>{posts.length}</strong>
+                <span>post</span>
+              </div>
+            </div>
+            {!isOwnProfile ? (
               <button
-                className="profile-edit-toggle"
-                onClick={() => setIsEditOpen((prev) => !prev)}
-                title={
-                  isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
+                className="profile-message-btn"
+                onClick={() =>
+                  navigate(
+                    `/messages?user=${encodeURIComponent(user.username || "")}`,
+                  )
                 }
               >
-                {isEditOpen ? <FaTimes /> : <FaPen />}
+                Xabar yuborish
               </button>
             ) : null}
           </div>
-          <div className="post-actions">
-            <p>
-              <strong>{posts.length}</strong>
-            </p>
-            <span>postlar</span>
-          </div>
-          {!isOwnProfile ? (
-            <button
-              className="profile-message-btn"
-              onClick={() =>
-                navigate(
-                  `/messages?user=${encodeURIComponent(user.username || "")}`,
-                )
-              }
-            >
-              Xabar yuborish
-            </button>
-          ) : null}
-          {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
-          {isOwnProfile && isEditOpen ? (
-            <div className="profile-bio-editcontainer">
-              <div className="profile-bio-edit">
-                <div className="profilePic-edit">
-                  <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
-                  <input
-                    type="file"
-                    hidden
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleProfilePicChange}
-                  />
-                  <button
-                    onClick={handleProfilePicAdd}
-                    className="profil-photo-addbtn"
-                  >
-                    {uploadingPhoto ? "..." : <BsCamera />}
-                  </button>
-                </div>
-                <textarea
-                  maxLength={300}
-                  placeholder="Bio yozing..."
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                />
-                <button
-                  className="bio-save-btn"
-                  onClick={handleBioSave}
-                  disabled={savingBio}
-                >
-                  {savingBio ? "Saqlanmoqda..." : "Bio saqlash"}
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
+        {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
       </div>
 
-      <hr className="profile-divider" />
+      {isOwnProfile && isEditOpen ? (
+        <div className="profile-bio-editcontainer">
+          <div className="profile-bio-edit">
+            <button
+              type="button"
+              className="profile-edit-close"
+              onClick={() => setIsEditOpen(false)}
+              aria-label="Yopish"
+            >
+              <FaTimes />
+            </button>
+            <div className="profilePic-edit">
+              <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
+              <input
+                type="file"
+                hidden
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleProfilePicChange}
+              />
+              <button
+                onClick={handleProfilePicAdd}
+                className="profil-photo-addbtn"
+              >
+                {uploadingPhoto ? "..." : <BsCamera />}
+              </button>
+            </div>
+            <label htmlFor="">Ismni taxrirlash</label>
+            <input
+              type="text"
+              maxLength={120}
+              placeholder="Ism"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="profile-firstname-input"
+            />
+            <label htmlFor="">Bio </label>
+            <textarea
+              maxLength={300}
+              placeholder="Bio yozing..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+            />
+            <button
+              className="bio-save-btn"
+              onClick={handleBioSave}
+              disabled={savingBio}
+            >
+              {savingBio ? "Saqlanmoqda..." : "Bio saqlash"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="user-posts">
         {loading ? (
@@ -366,9 +411,14 @@ function Profil() {
             >
               <div className="post-imgs">
                 <img
-                  src={item.imageUrl || item.image}
+                  src={getPostPreviewImage(item)}
                   alt={item.title || "post"}
                 />
+                {Array.isArray(item.imageUrls) && item.imageUrls.length > 1 ? (
+                  <span className="post-multi-count">
+                    {item.imageUrls.length}
+                  </span>
+                ) : null}
               </div>
               <div className="post-overlay">
                 <span className="post-time-badge">
@@ -385,10 +435,9 @@ function Profil() {
                     className="post-delete-btn"
                     onClick={() => handleDelete(item._id)}
                     disabled={deletingId === item._id}
-                    title="Postni o'chirish"
                   >
                     <FiTrash2 />
-                    {deletingId === item._id ? "O'chirilmoqda..." : "O'chirish"}
+                    {deletingId === item._id ? "O'chirilmoqda..." : ""}
                   </button>
                 ) : null}
               </div>

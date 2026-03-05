@@ -11,6 +11,15 @@ function Navbar() {
     return location.pathname === path ? "active" : "";
   };
 
+  const token = localStorage.getItem("UserToken");
+  const handleOpenCrate = () => {
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    setCreate(true);
+  };
+
   return (
     <div>
       <div className="navbar">
@@ -36,7 +45,7 @@ function Navbar() {
           <li>
             <div
               className="nav-item"
-              onClick={() => setCreate(true)}
+              onClick={handleOpenCrate}
               style={{ cursor: "pointer" }}
             >
               <FaPlus />

@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../services/User.js";
-import { FaPlus, FaArrowLeft, FaTimes } from "react-icons/fa";
+import {
+  FaPlus,
+  FaImage,
+  FaArrowLeft,
+  FaTimes,
+  FaChevronLeft,
+  FaChevronRight,
+} from "react-icons/fa";
 import { uploadImage } from "../api/upload.js";
 import { invalidateCache } from "../services/cache.js";
 import { notifyError, notifySuccess } from "../../utils/feedback.js";
@@ -12,7 +19,9 @@ const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
 function Create({ setCreate }) {
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [caption, setCaption] = useState("");
   const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -23,11 +32,33 @@ function Create({ setCreate }) {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const MAX_IMAGES = 10;
+
+  const handleFiles = (incomingFiles) => {
+    const fileList = Array.from(incomingFiles || []);
+    if (!fileList.length) return;
+
+    const imageFiles = fileList.filter((file) => file.type.startsWith("image/"));
+    if (!imageFiles.length) {
+      setErrorMsg("Iltimos, faqat rasm yuklang!");
+      return;
+    }
+
+    if (imageFiles.length > MAX_IMAGES) {
+      setErrorMsg(`Maksimal ${MAX_IMAGES} ta rasm tanlash mumkin`);
+      setSelectedImages(imageFiles.slice(0, MAX_IMAGES));
+      setPreviewIndex(0);
+      return;
+    }
+
     setErrorMsg("");
-    setSelectedImage(file);
+    setSelectedImages(imageFiles);
+    setPreviewIndex(0);
+  };
+
+  const handleImageChange = (e) => {
+    handleFiles(e.target.files);
+    e.target.value = "";
   };
 
   const handleDragOver = (e) => {
@@ -43,17 +74,7 @@ function Create({ setCreate }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setErrorMsg("Iltimos, faqat rasm yuklang!");
-      return;
-    }
-
-    setErrorMsg("");
-    setSelectedImage(file);
+    handleFiles(e.dataTransfer.files);
   };
 
   useEffect(() => {
@@ -74,7 +95,7 @@ function Create({ setCreate }) {
   }, [navigate]);
 
   const handlePostUpload = async () => {
-    if (!selectedImage) return;
+    if (!selectedImages.length) return;
     setErrorMsg("");
 
     if (caption.length > 5000) {
@@ -92,9 +113,9 @@ function Create({ setCreate }) {
     setUploading(true);
 
     try {
-      const imageUrl = await uploadImage(selectedImage);
-
-      if (!imageUrl) {
+      const uploaded = await Promise.all(selectedImages.map((item) => uploadImage(item)));
+      const imageUrls = uploaded.filter(Boolean);
+      if (imageUrls.length !== selectedImages.length) {
         throw new Error("Rasm Supabase'ga yuklanmadi");
       }
 
@@ -106,7 +127,8 @@ function Create({ setCreate }) {
         },
         body: JSON.stringify({
           title: caption || "Yangi post",
-          imageUrl,
+          imageUrl: imageUrls[0],
+          imageUrls,
         }),
       });
 
@@ -119,7 +141,9 @@ function Create({ setCreate }) {
       invalidateCache("posts:");
       window.dispatchEvent(new Event("post-created"));
 
-      setSelectedImage(null);
+      setSelectedImages([]);
+      setPreviewUrls([]);
+      setPreviewIndex(0);
       setCaption("");
       setCreate(false);
     } catch (error) {
@@ -133,25 +157,36 @@ function Create({ setCreate }) {
   };
 
   useEffect(() => {
+    const urls = selectedImages.map((item) => URL.createObjectURL(item));
+    setPreviewUrls(urls);
+    setPreviewIndex(0);
+
     return () => {
-      if (selectedImage) URL.revokeObjectURL(selectedImage);
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [selectedImage]);
+  }, [selectedImages]);
 
   return (
     <div className="modal-backdrop" onClick={() => setCreate(false)}>
       <div
-        className={`create-post ${selectedImage ? "editor-active" : ""}`}
+        className={`create-post ${selectedImages.length ? "editor-active" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="create-post__header">
-          {selectedImage && (
-            <button className="back-btn" onClick={() => setSelectedImage(null)}>
+          {selectedImages.length > 0 && (
+            <button
+              className="back-btn"
+              onClick={() => {
+                setSelectedImages([]);
+                setPreviewUrls([]);
+                setPreviewIndex(0);
+              }}
+            >
               <FaArrowLeft />
             </button>
           )}
-          <span>{selectedImage ? "Yangi post" : "Yangi post yaratish"}</span>
-          {!selectedImage && (
+          <span>{selectedImages.length ? "Yangi post" : "Yangi post yaratish"}</span>
+          {!selectedImages.length && (
             <span
               style={{ fontSize: "30px", cursor: "pointer" }}
               onClick={() => setCreate(false)}
@@ -159,7 +194,7 @@ function Create({ setCreate }) {
               <FaTimes />
             </span>
           )}
-          {selectedImage && (
+          {selectedImages.length > 0 && (
             <button
               className="share-btn"
               onClick={handlePostUpload}
@@ -172,8 +207,9 @@ function Create({ setCreate }) {
 
         {errorMsg && <ErrorMessage message={errorMsg} />}
 
-        {!selectedImage ? (
+        {!selectedImages.length ? (
           <>
+            <FaImage className="upload-icon" />
             <div
               className={`create-post__content ${isDragging ? "drag-active" : ""}`}
               onDragOver={handleDragOver}
@@ -192,6 +228,7 @@ function Create({ setCreate }) {
                   ? "Endi faylni qo'yib yuboring"
                   : "Rasmni bu yerga torting"}
               </p>
+              <small>Bir postga 10 tagacha rasm</small>
             </div>
             <div className="create-post__footer">
               <input
@@ -199,6 +236,7 @@ function Create({ setCreate }) {
                 hidden
                 ref={fileInputRef}
                 accept="image/*"
+                multiple
                 onChange={handleImageChange}
               />
               <button
@@ -213,10 +251,38 @@ function Create({ setCreate }) {
         ) : (
           <div className="editor-container">
             <div className="preview-box">
-              <img
-                src={URL.createObjectURL(selectedImage)}
-                alt="Tanlangan rasm"
-              />
+              {previewUrls[previewIndex] && (
+                <img src={previewUrls[previewIndex]} alt="Tanlangan rasm" />
+              )}
+              {previewUrls.length > 1 && (
+                <>
+                  <button
+                    className="preview-nav preview-nav--left"
+                    onClick={() =>
+                      setPreviewIndex((prev) =>
+                        prev === 0 ? previewUrls.length - 1 : prev - 1,
+                      )
+                    }
+                    type="button"
+                  >
+                    <FaChevronLeft />
+                  </button>
+                  <button
+                    className="preview-nav preview-nav--right"
+                    onClick={() =>
+                      setPreviewIndex((prev) =>
+                        prev === previewUrls.length - 1 ? 0 : prev + 1,
+                      )
+                    }
+                    type="button"
+                  >
+                    <FaChevronRight />
+                  </button>
+                  <span className="preview-counter">
+                    {previewIndex + 1}/{previewUrls.length}
+                  </span>
+                </>
+              )}
             </div>
             <div className="caption-box">
               <textarea

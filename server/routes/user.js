@@ -36,11 +36,17 @@ userRouter.get("/me", verifyToken, async (req, res) => {
 userRouter.patch("/me/profile", verifyToken, async (req, res) => {
   try {
     const rawBio = typeof req.body?.bio === "string" ? req.body.bio : undefined;
+    const rawFirstName =
+      typeof req.body?.firstName === "string" ? req.body.firstName : undefined;
     const rawProfilePic =
       typeof req.body?.profilePic === "string" ? req.body.profilePic : undefined;
 
-    if (rawBio === undefined && rawProfilePic === undefined) {
-      return res.status(400).json({ message: "bio yoki profilePic yuboring." });
+    if (
+      rawBio === undefined &&
+      rawProfilePic === undefined &&
+      rawFirstName === undefined
+    ) {
+      return res.status(400).json({ message: "bio, firstName yoki profilePic yuboring." });
     }
 
     const updates = {};
@@ -51,6 +57,17 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
         return res.status(400).json({ message: "Bio 300 belgidan oshmasin." });
       }
       updates.bio = bio;
+    }
+
+    if (rawFirstName !== undefined) {
+      const firstName = rawFirstName.trim();
+      if (!firstName) {
+        return res.status(400).json({ message: "Ism bo'sh bo'lmasligi kerak." });
+      }
+      if (firstName.length > 120) {
+        return res.status(400).json({ message: "Ism 120 belgidan oshmasin." });
+      }
+      updates.firstName = firstName;
     }
 
     if (rawProfilePic !== undefined) {

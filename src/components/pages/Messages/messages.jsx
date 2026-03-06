@@ -655,7 +655,10 @@ function Messages() {
     }
     return (
       <>
-        <Seo title="Xabarlar" description="Xabarchi chat sahifasi yuklanmoqda." />
+        <Seo
+          title="Xabarlar"
+          description="Xabarchi chat sahifasi yuklanmoqda."
+        />
         <div className="messages-layout-p">
           <p>Yuklanmoqda...</p>
         </div>
@@ -675,203 +678,205 @@ function Messages() {
           selectedConversation ? "has-selected-chat" : ""
         }`}
       >
-      <aside className="chat-sidebar">
-        <h3>Xabarlar</h3>
-        <div className="chat-start-row">
-          <input
-            value={startUsername}
-            onChange={(e) => setStartUsername(e.target.value)}
-            placeholder="@username"
-          />
-          <button onClick={handleStartConversation}>
-            <BsSearch />
-          </button>
-        </div>
-
-        <div className="conversation-list">
-          {conversations.map((conversation) => (
-            <button
-              key={conversation._id}
-              className={`conversation-item ${
-                String(conversation._id) === String(selectedConversationId)
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() => {
-                if (conversationLongPressTriggeredRef.current) {
-                  conversationLongPressTriggeredRef.current = false;
-                  return;
-                }
-                setSelectedConversationId(conversation._id);
-              }}
-              onMouseDown={startConversationLongPress(conversation._id)}
-              onMouseUp={clearConversationLongPress}
-              onMouseLeave={clearConversationLongPress}
-              onTouchStart={startConversationLongPress(conversation._id)}
-              onTouchEnd={clearConversationLongPress}
-              onTouchCancel={clearConversationLongPress}
-            >
-              <img
-                src={conversation.otherUser?.profilePic || DEFAULT_AVATAR}
-                alt={conversation.otherUser?.username || "user"}
-              />
-              <div className="conversation-meta">
-                <strong>
-                  @
-                  {conversation.otherUser?.username ||
-                    conversation.otherUser?.firstName ||
-                    "user"}
-                </strong>
-                <p>{conversation.lastMessage || "Yangi chat"}</p>
-              </div>
-              <div className="conversation-right">
-                <span>{formatTime(conversation.lastMessageAt)}</span>
-                {conversation.unreadCount ? (
-                  <em>{conversation.unreadCount}</em>
-                ) : null}
-              </div>
+        <aside className="chat-sidebar">
+          <h3>Xabarlar</h3>
+          <div className="chat-start-row">
+            <input
+              value={startUsername}
+              onChange={(e) => setStartUsername(e.target.value)}
+              placeholder="@username"
+            />
+            <button onClick={handleStartConversation}>
+              <BsSearch />
             </button>
-          ))}
-          {conversations.length === 0 ? (
-            <p className="empty">Hozircha chat yo'q</p>
-          ) : null}
-        </div>
-      </aside>
+          </div>
 
-      <section className="chat-window">
-        {selectedConversation ? (
-          <>
-            <header className="chat-header">
+          <div className="conversation-list">
+            {conversations.map((conversation) => (
               <button
-                type="button"
-                className="chat-back-btn"
-                onClick={() => setSelectedConversationId("")}
-                aria-label="Orqaga"
+                key={conversation._id}
+                className={`conversation-item ${
+                  String(conversation._id) === String(selectedConversationId)
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() => {
+                  if (conversationLongPressTriggeredRef.current) {
+                    conversationLongPressTriggeredRef.current = false;
+                    return;
+                  }
+                  setSelectedConversationId(conversation._id);
+                }}
+                onMouseDown={startConversationLongPress(conversation._id)}
+                onMouseUp={clearConversationLongPress}
+                onMouseLeave={clearConversationLongPress}
+                onTouchStart={startConversationLongPress(conversation._id)}
+                onTouchEnd={clearConversationLongPress}
+                onTouchCancel={clearConversationLongPress}
               >
-                <BsArrowLeft />
-              </button>
-              <img
-                src={
-                  selectedConversation.otherUser?.profilePic || DEFAULT_AVATAR
-                }
-                alt="chat user"
-              />
-              <div>
-                <a href={`/@${selectedConversation.otherUser?.username}`}>
+                <img
+                  src={conversation.otherUser?.profilePic || DEFAULT_AVATAR}
+                  alt={conversation.otherUser?.username || "user"}
+                />
+                <div className="conversation-meta">
                   <strong>
                     @
-                    {selectedConversation.otherUser?.username ||
-                      selectedConversation.otherUser?.firstName}
+                    {conversation.otherUser?.username ||
+                      conversation.otherUser?.firstName ||
+                      "user"}
                   </strong>
-                </a>
-                <p>
-                  {isOtherTyping
-                    ? "yozmoqda..."
-                    : socketConnected
-                      ? "online"
-                      : socketReconnecting
-                        ? "ulanmoqda..."
-                        : "offline"}
-                </p>
+                  <p>{conversation.lastMessage || "Yangi chat"}</p>
+                </div>
+                <div className="conversation-right">
+                  <span>{formatTime(conversation.lastMessageAt)}</span>
+                  {conversation.unreadCount ? (
+                    <em>{conversation.unreadCount}</em>
+                  ) : null}
+                </div>
+              </button>
+            ))}
+            {conversations.length === 0 ? (
+              <p className="empty">Hozircha chat yo'q</p>
+            ) : null}
+          </div>
+        </aside>
+
+        <section className="chat-window">
+          {selectedConversation ? (
+            <>
+              <header className="chat-header">
+                <button
+                  type="button"
+                  className="chat-back-btn"
+                  onClick={() => setSelectedConversationId("")}
+                  aria-label="Orqaga"
+                >
+                  <BsArrowLeft />
+                </button>
+                <img
+                  src={
+                    selectedConversation.otherUser?.profilePic || DEFAULT_AVATAR
+                  }
+                  alt="chat user"
+                />
+                <div>
+                  <a href={`/@${selectedConversation.otherUser?.username}`}>
+                    <strong>
+                      @
+                      {selectedConversation.otherUser?.username ||
+                        selectedConversation.otherUser?.firstName}
+                    </strong>
+                  </a>
+                  <p>
+                    {isOtherTyping
+                      ? "yozmoqda..."
+                      : socketConnected
+                        ? "online"
+                        : socketReconnecting
+                          ? "ulanmoqda..."
+                          : "offline"}
+                  </p>
+                </div>
+              </header>
+
+              <div className="message-list">
+                {messages.map((item) => {
+                  const mine = item.senderChatId === meChatIdRef.current;
+                  return (
+                    <div
+                      key={item._id}
+                      className={`message-item ${mine ? "mine" : ""}`}
+                      onMouseDown={
+                        mine ? startMessageLongPress(item._id) : undefined
+                      }
+                      onMouseUp={mine ? clearMessageLongPress : undefined}
+                      onMouseLeave={mine ? clearMessageLongPress : undefined}
+                      onTouchStart={
+                        mine ? startMessageLongPress(item._id) : undefined
+                      }
+                      onTouchEnd={mine ? clearMessageLongPress : undefined}
+                      onTouchCancel={mine ? clearMessageLongPress : undefined}
+                    >
+                      <p
+                        dangerouslySetInnerHTML={{
+                          __html: sortMessageLinks(item.text),
+                        }}
+                      />
+                      <span className="message-meta">
+                        <span className="message-send-time">
+                          {formatTime(item.createdAt)}
+                        </span>
+                        {mine ? (
+                          isMessageReadByOther(item) ? (
+                            <BsCheckAll className="message-status-icon read" />
+                          ) : (
+                            <BsCheck className="message-status-icon sent" />
+                          )
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
               </div>
-            </header>
 
-            <div className="message-list">
-              {messages.map((item) => {
-                const mine = item.senderChatId === meChatIdRef.current;
-                return (
-                  <div
-                    key={item._id}
-                    className={`message-item ${mine ? "mine" : ""}`}
-                    onMouseDown={
-                      mine ? startMessageLongPress(item._id) : undefined
-                    }
-                    onMouseUp={mine ? clearMessageLongPress : undefined}
-                    onMouseLeave={mine ? clearMessageLongPress : undefined}
-                    onTouchStart={
-                      mine ? startMessageLongPress(item._id) : undefined
-                    }
-                    onTouchEnd={mine ? clearMessageLongPress : undefined}
-                    onTouchCancel={mine ? clearMessageLongPress : undefined}
-                  >
-                    <p
-                      dangerouslySetInnerHTML={{
-                        __html: sortMessageLinks(item.text),
-                      }}
-                    />
-                    <span className="message-meta">
-                      {formatTime(item.createdAt)}
-                      {mine ? (
-                        isMessageReadByOther(item) ? (
-                          <BsCheckAll className="message-status-icon read" />
-                        ) : (
-                          <BsCheck className="message-status-icon sent" />
-                        )
-                      ) : null}
-                    </span>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+              <div className="chat-input-row">
+                <input
+                  value={text}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setText(next);
+                    if (!selectedConversationId) return;
 
-            <div className="chat-input-row">
-              <input
-                value={text}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setText(next);
-                  if (!selectedConversationId) return;
+                    if (next.trim()) {
+                      socketRef.current?.emit("chat:typing", {
+                        conversationId: selectedConversationId,
+                      });
 
-                  if (next.trim()) {
-                    socketRef.current?.emit("chat:typing", {
-                      conversationId: selectedConversationId,
-                    });
-
-                    if (stopTypingTimerRef.current) {
-                      clearTimeout(stopTypingTimerRef.current);
-                    }
-                    stopTypingTimerRef.current = setTimeout(() => {
+                      if (stopTypingTimerRef.current) {
+                        clearTimeout(stopTypingTimerRef.current);
+                      }
+                      stopTypingTimerRef.current = setTimeout(() => {
+                        socketRef.current?.emit("chat:stop-typing", {
+                          conversationId: selectedConversationId,
+                        });
+                      }, 1200);
+                    } else {
                       socketRef.current?.emit("chat:stop-typing", {
                         conversationId: selectedConversationId,
                       });
-                    }, 1200);
-                  } else {
+                      if (stopTypingTimerRef.current) {
+                        clearTimeout(stopTypingTimerRef.current);
+                        stopTypingTimerRef.current = null;
+                      }
+                    }
+                  }}
+                  placeholder="Xabar yozing..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSend();
+                  }}
+                  onBlur={() => {
+                    if (!selectedConversationId) return;
                     socketRef.current?.emit("chat:stop-typing", {
                       conversationId: selectedConversationId,
                     });
-                    if (stopTypingTimerRef.current) {
-                      clearTimeout(stopTypingTimerRef.current);
-                      stopTypingTimerRef.current = null;
-                    }
-                  }
-                }}
-                placeholder="Xabar yozing..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSend();
-                }}
-                onBlur={() => {
-                  if (!selectedConversationId) return;
-                  socketRef.current?.emit("chat:stop-typing", {
-                    conversationId: selectedConversationId,
-                  });
-                }}
-              />
-              <button
-                className="message-send-btn"
-                onClick={handleSend}
-                disabled={!text.trim()}
-              >
-                <IoSend />
-              </button>
+                  }}
+                />
+                <button
+                  className="message-send-btn"
+                  onClick={handleSend}
+                  disabled={!text.trim()}
+                >
+                  <IoSend />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="chat-empty">
+              Chat tanlang yoki @username orqali oching
             </div>
-          </>
-        ) : (
-          <div className="chat-empty">
-            Chat tanlang yoki @username orqali oching
-          </div>
-        )}
-      </section>
+          )}
+        </section>
 
         {confirmAction ? (
           <div

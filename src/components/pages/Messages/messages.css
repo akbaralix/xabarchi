@@ -34,8 +34,6 @@
   flex: 1;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #4d4d4d;
-  border-top: 1px solid #4d4d4d;
   color: #fff;
   border-radius: 10px;
   padding: 12px;
@@ -45,14 +43,17 @@
 .chat-input-row input ::placeholder {
   font-size: 16px;
 }
+.chat-start-row input {
+  border: 1px solid #181819;
+}
 
 .chat-start-row input:focus {
   outline: none;
-  border: 1px solid #642be9;
+  border: 1px solid #272727;
 }
 .chat-start-row button {
   border: none;
-  border-radius: 10px;
+  border-radius: 30px;
   background: #4b18c3;
   color: #fff;
   font-size: 18px;
@@ -235,7 +236,9 @@
   gap: 6px;
   width: 100%;
 }
-
+.message-send-time {
+  user-select: none;
+}
 .message-status-icon {
   font-size: 14px;
 }
@@ -249,7 +252,6 @@
 }
 
 .chat-input-row {
-  border-top: 1px solid #2d2d2d;
   padding: 10px;
   display: flex;
   gap: 8px;
@@ -258,6 +260,8 @@
 .chat-input-row input {
   background: transparent;
   border-top: 1px solid #4d4d4d;
+  border-bottom: 1px solid #4d4d4d;
+
   color: #fff;
   border-radius: 25px;
   padding: 15px;

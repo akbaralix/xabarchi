@@ -4,6 +4,20 @@ import Home from "./components/pages/Home/home";
 import Profil from "./components/pages/Profil/profil";
 import Reels from "./components/pages/Reels/reels";
 import Messages from "./components/pages/Messages/messages";
+import Seo from "./components/seo/Seo";
+
+function NotFoundPage() {
+  return (
+    <>
+      <Seo
+        title="Sahifa topilmadi"
+        description="So'ralgan sahifa mavjud emas."
+        noindex
+      />
+      <h1>Sahifa topilmadi</h1>
+    </>
+  );
+}
 
 function App() {
   return (
@@ -14,7 +28,7 @@ function App() {
       <Route path="/reels" element={<Reels />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/:username" element={<Profil />} />
-      <Route path="*" element={<h1>Sahifa topilmadi</h1>} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

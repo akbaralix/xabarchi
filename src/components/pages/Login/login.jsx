@@ -7,6 +7,7 @@ import {
   loginWithPassword,
   loginWithTelegramCode,
 } from "../../api/autoh";
+import Seo from "../../seo/Seo";
 import "./login.css";
 
 function Login() {
@@ -122,188 +123,195 @@ function Login() {
   const showTelegramSetup = Boolean(setupToken);
 
   return (
-    <div className="login-container">
-      <div className="login-page">
-        {!showTelegramFlow ? (
-          <>
-            <h2>Xabarchi'ga kirish</h2>
-            <div className="login-mode-tabs">
-              <button
-                className={authMode === "password" ? "active" : ""}
-                onClick={() => {
-                  setAuthMode("password");
-                  resetState();
-                }}
-              >
-                Username va Parol
-              </button>
-              <button
-                className={authMode === "telegram" ? "active" : ""}
-                onClick={() => {
-                  setAuthMode("telegram");
-                  resetState();
-                }}
-              >
-                Boshqa
-              </button>
-            </div>
-
-            {authMode === "password" ? (
-              <div className="password-login">
-                <div className="input-group">
-                  <input
-                    type="text"
-                    id="username-login"
-                    placeholder=" "
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  />
-                  <label htmlFor="username-login">Username</label>
-                </div>
-                <div className="input-group">
-                  <input
-                    type="password"
-                    id="password-login"
-                    placeholder=" "
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value.toLowerCase())}
-                  />
-                  <label htmlFor="password-login">Parol</label>
-                </div>
+    <>
+      <Seo
+        title="Kirish"
+        description="Xabarchi hisobingizga xavfsiz kirish yoki ro'yxatdan o'tish."
+        noindex
+      />
+      <div className="login-container">
+        <div className="login-page">
+          {!showTelegramFlow ? (
+            <>
+              <h2>Xabarchi'ga kirish</h2>
+              <div className="login-mode-tabs">
                 <button
-                  className="primary-auth-btn"
-                  onClick={handlePasswordLogin}
-                >
-                  {loading ? <span className="loadingLogin"></span> : "Kirish"}
-                </button>
-              </div>
-            ) : (
-              <div className="telegram-login">
-                <button
-                  style={{ fontSize: "1rem" }}
+                  className={authMode === "password" ? "active" : ""}
                   onClick={() => {
-                    setShowTelegramFlow(true);
+                    setAuthMode("password");
                     resetState();
                   }}
                 >
-                  <FaTelegram />
-                  <span>Telegram orqali kirish</span>
+                  Username va Parol
+                </button>
+                <button
+                  className={authMode === "telegram" ? "active" : ""}
+                  onClick={() => {
+                    setAuthMode("telegram");
+                    resetState();
+                  }}
+                >
+                  Boshqa
                 </button>
               </div>
-            )}
 
-            {error ? <p className="login-error">{error}</p> : null}
-          </>
-        ) : (
-          <div className="telegram-code-section">
-            <button
-              className="auth-close"
-              onClick={() => {
-                setShowTelegramFlow(false);
-                setSetupToken("");
-                setLoading(false);
-                resetState();
-              }}
-            >
-              <FiX />
-            </button>
-            <img
-              className="telegram-logo"
-              src="https://web.telegram.org/a/telegram-logo.1b2bb5b107f046ea9325.svg"
-              alt="Telegram"
-            />
-            <h2>Telegram orqali kirish</h2>
-            <p>
-              <a target="blank" href="https://t.me/xabarchixbot">
-                Telegram botimizga
-              </a>
-              <span> xabar yuboring va yuborilgan kodni kiriting.</span>
-            </p>
+              {authMode === "password" ? (
+                <div className="password-login">
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      id="username-login"
+                      placeholder=" "
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    />
+                    <label htmlFor="username-login">Username</label>
+                  </div>
+                  <div className="input-group">
+                    <input
+                      type="password"
+                      id="password-login"
+                      placeholder=" "
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value.toLowerCase())}
+                    />
+                    <label htmlFor="password-login">Parol</label>
+                  </div>
+                  <button
+                    className="primary-auth-btn"
+                    onClick={handlePasswordLogin}
+                  >
+                    {loading ? <span className="loadingLogin"></span> : "Kirish"}
+                  </button>
+                </div>
+              ) : (
+                <div className="telegram-login">
+                  <button
+                    style={{ fontSize: "1rem" }}
+                    onClick={() => {
+                      setShowTelegramFlow(true);
+                      resetState();
+                    }}
+                  >
+                    <FaTelegram />
+                    <span>Telegram orqali kirish</span>
+                  </button>
+                </div>
+              )}
 
-            {!showTelegramSetup ? (
-              <div className="code-input">
-                <div className="input-group">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{0,6}"
-                    id="sign-in-code"
-                    placeholder=" "
-                    value={code}
-                    onChange={(e) =>
-                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
-                  />
-                  <label htmlFor="sign-in-code">6 xonali kod</label>
-                </div>
-                <button onClick={handleTelegramCodeLogin}>
-                  {loading ? (
-                    <span className="loadingLogin"></span>
-                  ) : (
-                    <span>Kodni tasdiqlash</span>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="code-input">
-                <p className="setup-message">{setupMessage}</p>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    id="setup-username"
-                    placeholder=" "
-                    value={setupUsername}
-                    onChange={(e) =>
-                      setSetupUsername(
-                        e.target.value
-                          .replace(/[^a-zA-Z0-9_]/g, "")
-                          .toLowerCase(),
-                      )
-                    }
-                  />
-                  <label htmlFor="setup-username">Username tanlang</label>
-                </div>
-                <div className="input-group">
-                  <input
-                    type="password"
-                    id="setup-password"
-                    placeholder=" "
-                    value={setupPassword}
-                    onChange={(e) =>
-                      setSetupPassword(e.target.value.toLowerCase())
-                    }
-                  />
-                  <label htmlFor="setup-password">Parol tanlang</label>
-                </div>
-                <div className="input-group">
-                  <input
-                    type="password"
-                    id="setup-password-confirm"
-                    placeholder=" "
-                    value={confirmPassword}
-                    onChange={(e) =>
-                      setConfirmPassword(e.target.value.toLowerCase())
-                    }
-                  />
-                  <label htmlFor="setup-password-confirm">
-                    Parolni tasdiqlang
-                  </label>
-                </div>
-                <button onClick={handleCompleteSignup}>
-                  {loading ? (
-                    <span className="loadingLogin"></span>
-                  ) : (
-                    <span>Hisobni yaratish</span>
-                  )}
-                </button>
-              </div>
-            )}
+              {error ? <p className="login-error">{error}</p> : null}
+            </>
+          ) : (
+            <div className="telegram-code-section">
+              <button
+                className="auth-close"
+                onClick={() => {
+                  setShowTelegramFlow(false);
+                  setSetupToken("");
+                  setLoading(false);
+                  resetState();
+                }}
+              >
+                <FiX />
+              </button>
+              <img
+                className="telegram-logo"
+                src="https://web.telegram.org/a/telegram-logo.1b2bb5b107f046ea9325.svg"
+                alt="Telegram"
+              />
+              <h2>Telegram orqali kirish</h2>
+              <p>
+                <a target="blank" href="https://t.me/xabarchixbot">
+                  Telegram botimizga
+                </a>
+                <span> xabar yuboring va yuborilgan kodni kiriting.</span>
+              </p>
 
-            {error ? <p className="login-error">{error}</p> : null}
-          </div>
-        )}
+              {!showTelegramSetup ? (
+                <div className="code-input">
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{0,6}"
+                      id="sign-in-code"
+                      placeholder=" "
+                      value={code}
+                      onChange={(e) =>
+                        setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                    />
+                    <label htmlFor="sign-in-code">6 xonali kod</label>
+                  </div>
+                  <button onClick={handleTelegramCodeLogin}>
+                    {loading ? (
+                      <span className="loadingLogin"></span>
+                    ) : (
+                      <span>Kodni tasdiqlash</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="code-input">
+                  <p className="setup-message">{setupMessage}</p>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      id="setup-username"
+                      placeholder=" "
+                      value={setupUsername}
+                      onChange={(e) =>
+                        setSetupUsername(
+                          e.target.value
+                            .replace(/[^a-zA-Z0-9_]/g, "")
+                            .toLowerCase(),
+                        )
+                      }
+                    />
+                    <label htmlFor="setup-username">Username tanlang</label>
+                  </div>
+                  <div className="input-group">
+                    <input
+                      type="password"
+                      id="setup-password"
+                      placeholder=" "
+                      value={setupPassword}
+                      onChange={(e) =>
+                        setSetupPassword(e.target.value.toLowerCase())
+                      }
+                    />
+                    <label htmlFor="setup-password">Parol tanlang</label>
+                  </div>
+                  <div className="input-group">
+                    <input
+                      type="password"
+                      id="setup-password-confirm"
+                      placeholder=" "
+                      value={confirmPassword}
+                      onChange={(e) =>
+                        setConfirmPassword(e.target.value.toLowerCase())
+                      }
+                    />
+                    <label htmlFor="setup-password-confirm">
+                      Parolni tasdiqlang
+                    </label>
+                  </div>
+                  <button onClick={handleCompleteSignup}>
+                    {loading ? (
+                      <span className="loadingLogin"></span>
+                    ) : (
+                      <span>Hisobni yaratish</span>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {error ? <p className="login-error">{error}</p> : null}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

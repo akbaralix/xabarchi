@@ -8,6 +8,7 @@ import { getUser } from "../../services/User";
 import { notifyError, notifySuccess } from "../../../utils/feedback";
 import { getCached, setCached } from "../../services/cache";
 import { sortMessageLinks } from "../../services/formatNumber";
+import Seo from "../../seo/Seo";
 import {
   deleteConversation,
   deleteMessage,
@@ -653,18 +654,27 @@ function Messages() {
       return null;
     }
     return (
-      <div className="messages-layout-p">
-        <p>Yuklanmoqda...</p>
-      </div>
+      <>
+        <Seo title="Xabarlar" description="Xabarchi chat sahifasi yuklanmoqda." />
+        <div className="messages-layout-p">
+          <p>Yuklanmoqda...</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div
-      className={`messages-layout ${
-        selectedConversation ? "has-selected-chat" : ""
-      }`}
-    >
+    <>
+      <Seo
+        title="Xabarlar"
+        description="Xabarchi foydalanuvchilari bilan real vaqt chat."
+        noindex
+      />
+      <div
+        className={`messages-layout ${
+          selectedConversation ? "has-selected-chat" : ""
+        }`}
+      >
       <aside className="chat-sidebar">
         <h3>Xabarlar</h3>
         <div className="chat-start-row">
@@ -863,37 +873,38 @@ function Messages() {
         )}
       </section>
 
-      {confirmAction ? (
-        <div
-          className="chat-confirm-overlay"
-          onClick={() => setConfirmAction(null)}
-        >
+        {confirmAction ? (
           <div
-            className="chat-confirm-sheet"
-            onClick={(e) => e.stopPropagation()}
+            className="chat-confirm-overlay"
+            onClick={() => setConfirmAction(null)}
           >
-            <h4>{confirmAction.title}</h4>
-            <p>{confirmAction.description}</p>
-            <div className="chat-confirm-sheet__btn">
-              <button
-                type="button"
-                className="danger"
-                onClick={handleConfirmDelete}
-              >
-                {confirmAction.confirmLabel}
-              </button>
-              <button
-                type="button"
-                className="cancel"
-                onClick={() => setConfirmAction(null)}
-              >
-                Bekor qilish
-              </button>
+            <div
+              className="chat-confirm-sheet"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4>{confirmAction.title}</h4>
+              <p>{confirmAction.description}</p>
+              <div className="chat-confirm-sheet__btn">
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={handleConfirmDelete}
+                >
+                  {confirmAction.confirmLabel}
+                </button>
+                <button
+                  type="button"
+                  className="cancel"
+                  onClick={() => setConfirmAction(null)}
+                >
+                  Bekor qilish
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   );
 }
 

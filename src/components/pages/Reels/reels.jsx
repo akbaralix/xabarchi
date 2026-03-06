@@ -1,10 +1,18 @@
 import React from "react";
 import Home from "../Home/home";
+import Seo from "../../seo/Seo";
+
 function Reels() {
   return (
-    <div>
-      <Home />
-    </div>
+    <>
+      <Seo
+        title="Reels"
+        description="Xabarchi reels uslubidagi postlar oqimi."
+      />
+      <div>
+        <Home enableSeo={false} />
+      </div>
+    </>
   );
 }
 

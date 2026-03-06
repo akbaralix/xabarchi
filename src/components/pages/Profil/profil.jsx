@@ -18,6 +18,7 @@ import {
 } from "../../services/User";
 import { deleteMyPost, getMyPosts } from "../../api/mypost";
 import { uploadImage } from "../../api/upload";
+import Seo from "../../seo/Seo";
 import "./profil.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
@@ -288,186 +289,201 @@ function Profil() {
 
   if (error) {
     return (
-      <div className="profil-wrapper">
-        <p className="loading-text">{error}</p>
-      </div>
+      <>
+        <Seo
+          title="Profil topilmadi"
+          description="So'ralgan profil topilmadi."
+          noindex
+        />
+        <div className="profil-wrapper">
+          <p className="loading-text">{error}</p>
+        </div>
+      </>
     );
   }
 
   if (!user) return null;
 
+  const profileName = user.username || user.firstName || "Foydalanuvchi";
+  const profileDescription = user.bio
+    ? `${profileName} profili. ${user.bio}`
+    : `${profileName} profil sahifasi va postlari.`;
+
   return (
-    <div className="profil-wrapper">
-      <div className="profil-container">
-        <div className="profile-top">
-          <div className="pofilePic" onClick={handleShowProfilePic}>
-            <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
-          </div>
-          <div className="userActions">
-            <div className="userName">
-              <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
-              {isOwnProfile ? (
-                <button
-                  className="profile-edit-toggle"
-                  onClick={() => setIsEditOpen((prev) => !prev)}
-                  title={
-                    isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
-                  }
-                >
-                  {isEditOpen ? <FaTimes /> : <FaPen />}
-                </button>
-              ) : null}
+    <>
+      <Seo title={`@${profileName}`} description={profileDescription} />
+      <div className="profil-wrapper">
+        <div className="profil-container">
+          <div className="profile-top">
+            <div className="pofilePic" onClick={handleShowProfilePic}>
+              <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
             </div>
-            <div className="profile-bio-block">
-              <h4>{user.firstName || user.username || "Foydalanuvchi"}</h4>
-            </div>
-            <div className="post-actions">
-              <div>
-                <strong>{posts.length}</strong>
-                <span>post</span>
+            <div className="userActions">
+              <div className="userName">
+                <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
+                {isOwnProfile ? (
+                  <button
+                    className="profile-edit-toggle"
+                    onClick={() => setIsEditOpen((prev) => !prev)}
+                    title={
+                      isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
+                    }
+                  >
+                    {isEditOpen ? <FaTimes /> : <FaPen />}
+                  </button>
+                ) : null}
+              </div>
+              <div className="profile-bio-block">
+                <h4>{user.firstName || user.username || "Foydalanuvchi"}</h4>
+              </div>
+              <div className="post-actions">
+                <div>
+                  <strong>{posts.length}</strong>
+                  <span>post</span>
+                </div>
               </div>
             </div>
           </div>
+          {!isOwnProfile ? (
+            <button
+              className="profile-message-btn"
+              onClick={() =>
+                navigate(
+                  `/messages?user=${encodeURIComponent(user.username || "")}`,
+                )
+              }
+            >
+              Xabar yuborish
+            </button>
+          ) : null}
+          {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
         </div>
-        {!isOwnProfile ? (
-          <button
-            className="profile-message-btn"
-            onClick={() =>
-              navigate(
-                `/messages?user=${encodeURIComponent(user.username || "")}`,
-              )
-            }
-          >
-            Xabar yuborish
-          </button>
-        ) : null}
-        {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
-      </div>
 
-      {isOwnProfile && isEditOpen ? (
-        <div className="profile-bio-editcontainer">
-          <div className="profile-bio-edit">
+        {isOwnProfile && isEditOpen ? (
+          <div className="profile-bio-editcontainer">
+            <div className="profile-bio-edit">
+              <button
+                type="button"
+                className="profile-edit-close"
+                onClick={() => setIsEditOpen(false)}
+                aria-label="Yopish"
+              >
+                <FaTimes />
+              </button>
+              <div className="profilePic-edit">
+                <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
+                <input
+                  type="file"
+                  hidden
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                />
+                <button
+                  onClick={handleProfilePicAdd}
+                  className="profil-photo-addbtn"
+                >
+                  {uploadingPhoto ? "..." : <BsCamera />}
+                </button>
+              </div>
+              <label htmlFor="">Ismni taxrirlash</label>
+              <input
+                type="text"
+                maxLength={120}
+                placeholder="Ism"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="profile-firstname-input"
+              />
+              <label htmlFor="">Bio </label>
+              <textarea
+                maxLength={300}
+                placeholder="Bio yozing..."
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+              />
+              <button
+                className="bio-save-btn"
+                onClick={handleBioSave}
+                disabled={savingBio}
+              >
+                {savingBio ? "Saqlanmoqda..." : "Bio saqlash"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="user-posts">
+          {loading ? (
+            <p className="loading-text">Yuklanmoqda...</p>
+          ) : posts.length > 0 ? (
+            posts.map((item) => (
+              <div
+                className="profile-post_item"
+                key={item._id}
+                data-post-id={item._id}
+                ref={observePost}
+              >
+                <div className="post-imgs">
+                  <img
+                    src={getPostPreviewImage(item)}
+                    alt={item.title || "post"}
+                  />
+                  {Array.isArray(item.imageUrls) && item.imageUrls.length > 1 ? (
+                    <span className="post-multi-count">
+                      {item.imageUrls.length}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="post-overlay">
+                  <span className="post-time-badge">
+                    {formatRelativeTimeUz(item.createdAt)}
+                  </span>
+                  <div className="post-views">
+                    <BsEye className="views-icon" />
+                    <span className="views-count">
+                      {formatNumber(item.views || 0)}
+                    </span>
+                  </div>
+                  {isOwnProfile ? (
+                    <button
+                      className="post-delete-btn"
+                      onClick={() => handleDelete(item._id)}
+                      disabled={deletingId === item._id}
+                    >
+                      <FiTrash2 />
+                      {deletingId === item._id ? "O'chirilmoqda..." : ""}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="no-posts">
+              <p>Hozircha postlar yo'q</p>
+            </div>
+          )}
+        </div>
+        {showProfilePic ? (
+          <div className="profile-image-modal" onClick={handleCloseProfilePic}>
             <button
               type="button"
-              className="profile-edit-close"
-              onClick={() => setIsEditOpen(false)}
+              className="profile-image-close"
+              onClick={handleCloseProfilePic}
               aria-label="Yopish"
             >
               <FaTimes />
             </button>
-            <div className="profilePic-edit">
-              <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
-              <input
-                type="file"
-                hidden
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleProfilePicChange}
-              />
-              <button
-                onClick={handleProfilePicAdd}
-                className="profil-photo-addbtn"
-              >
-                {uploadingPhoto ? "..." : <BsCamera />}
-              </button>
-            </div>
-            <label htmlFor="">Ismni taxrirlash</label>
-            <input
-              type="text"
-              maxLength={120}
-              placeholder="Ism"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="profile-firstname-input"
+            <img
+              className="profile-image-modal-img"
+              src={user.profilePic || DEFAULT_AVATAR}
+              alt={user.username || "profile"}
+              onClick={(event) => event.stopPropagation()}
             />
-            <label htmlFor="">Bio </label>
-            <textarea
-              maxLength={300}
-              placeholder="Bio yozing..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-            />
-            <button
-              className="bio-save-btn"
-              onClick={handleBioSave}
-              disabled={savingBio}
-            >
-              {savingBio ? "Saqlanmoqda..." : "Bio saqlash"}
-            </button>
           </div>
-        </div>
-      ) : null}
-
-      <div className="user-posts">
-        {loading ? (
-          <p className="loading-text">Yuklanmoqda...</p>
-        ) : posts.length > 0 ? (
-          posts.map((item) => (
-            <div
-              className="profile-post_item"
-              key={item._id}
-              data-post-id={item._id}
-              ref={observePost}
-            >
-              <div className="post-imgs">
-                <img
-                  src={getPostPreviewImage(item)}
-                  alt={item.title || "post"}
-                />
-                {Array.isArray(item.imageUrls) && item.imageUrls.length > 1 ? (
-                  <span className="post-multi-count">
-                    {item.imageUrls.length}
-                  </span>
-                ) : null}
-              </div>
-              <div className="post-overlay">
-                <span className="post-time-badge">
-                  {formatRelativeTimeUz(item.createdAt)}
-                </span>
-                <div className="post-views">
-                  <BsEye className="views-icon" />
-                  <span className="views-count">
-                    {formatNumber(item.views || 0)}
-                  </span>
-                </div>
-                {isOwnProfile ? (
-                  <button
-                    className="post-delete-btn"
-                    onClick={() => handleDelete(item._id)}
-                    disabled={deletingId === item._id}
-                  >
-                    <FiTrash2 />
-                    {deletingId === item._id ? "O'chirilmoqda..." : ""}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="no-posts">
-            <p>Hozircha postlar yo'q</p>
-          </div>
-        )}
+        ) : null}
       </div>
-      {showProfilePic ? (
-        <div className="profile-image-modal" onClick={handleCloseProfilePic}>
-          <button
-            type="button"
-            className="profile-image-close"
-            onClick={handleCloseProfilePic}
-            aria-label="Yopish"
-          >
-            <FaTimes />
-          </button>
-          <img
-            className="profile-image-modal-img"
-            src={user.profilePic || DEFAULT_AVATAR}
-            alt={user.username || "profile"}
-            onClick={(event) => event.stopPropagation()}
-          />
-        </div>
-      ) : null}
-    </div>
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
+import Seo from "../../seo/Seo";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
@@ -94,7 +95,7 @@ const ReportModal = ({ postId, onClose }) => {
   );
 };
 
-function Home() {
+function Home({ enableSeo = true }) {
   const [post, setPost] = useState([]);
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
@@ -229,14 +230,21 @@ function Home() {
   }, []);
 
   return (
-    <div className="post-container">
-      {post.map((item, index) => (
-        <div
-          className="post-item"
-          key={item.id}
-          data-post-id={item.id}
-          ref={observePost}
-        >
+    <>
+      {enableSeo ? (
+        <Seo
+          title="Bosh sahifa"
+          description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar."
+        />
+      ) : null}
+      <div className="post-container home-feed">
+        {post.map((item, index) => (
+          <div
+            className="post-item"
+            key={item.id}
+            data-post-id={item.id}
+            ref={observePost}
+          >
           <div className="user-actions">
             <div className="user-info">
               <div className="user-img-wrapper">
@@ -325,22 +333,23 @@ function Home() {
             </div>
           </div>
           <hr className="post-hr" />
-        </div>
-      ))}
+          </div>
+        ))}
 
-      {activePostId && (
-        <>
-          <div
-            className="modal-backdrop"
-            onClick={() => setActivePostId(null)}
-          ></div>
-          <ReportModal
-            postId={activePostId}
-            onClose={() => setActivePostId(null)}
-          />
-        </>
-      )}
-    </div>
+        {activePostId && (
+          <>
+            <div
+              className="modal-backdrop"
+              onClick={() => setActivePostId(null)}
+            ></div>
+            <ReportModal
+              postId={activePostId}
+              onClose={() => setActivePostId(null)}
+            />
+          </>
+        )}
+      </div>
+    </>
   );
 }
 

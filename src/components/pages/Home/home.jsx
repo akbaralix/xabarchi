@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaChevronRight, FaEllipsisV, FaTimes } from "react-icons/fa";
+import {
+  FaChevronLeft,
+  FaChevronRight,
+  FaEllipsisV,
+  FaTimes,
+} from "react-icons/fa";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
@@ -232,10 +237,7 @@ function Home({ enableSeo = true }) {
   return (
     <>
       {enableSeo ? (
-        <Seo
-          title="Bosh sahifa"
-          description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar."
-        />
+        <Seo description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar." />
       ) : null}
       <div className="post-container home-feed">
         {post.map((item, index) => (
@@ -245,94 +247,94 @@ function Home({ enableSeo = true }) {
             data-post-id={item.id}
             ref={observePost}
           >
-          <div className="user-actions">
-            <div className="user-info">
-              <div className="user-img-wrapper">
-                <img src={item.profilePic} alt={item.userName} />
+            <div className="user-actions">
+              <div className="user-info">
+                <div className="user-img-wrapper">
+                  <img src={item.profilePic} alt={item.userName} />
+                </div>
+                <div className="user-p">
+                  <h3
+                    onClick={() =>
+                      navigate(`/${encodeURIComponent(item.userName)}`)
+                    }
+                    style={{ cursor: "pointer" }}
+                  >
+                    {item.userName}
+                  </h3>
+                  <p className="user-post__createAdd">{item.createAdd}</p>
+                </div>
               </div>
-              <div className="user-p">
-                <h3
-                  onClick={() =>
-                    navigate(`/${encodeURIComponent(item.userName)}`)
-                  }
-                  style={{ cursor: "pointer" }}
-                >
-                  {item.userName}
-                </h3>
-                <p className="user-post__createAdd">{item.createAdd}</p>
-              </div>
-            </div>
-            <button
-              className="post-menyu_se"
-              onClick={() => setActivePostId(item.id)}
-            >
-              <FaEllipsisV />
-            </button>
-          </div>
-
-          <div className="post-img">
-            <img src={getCurrentImage(item)} alt="post content" />
-            {(item.images || []).length > 1 && (
-              <>
-                <button
-                  className="post-carousel-btn post-carousel-btn--left"
-                  onClick={() => changeSlide(item.id, item.images.length, -1)}
-                  type="button"
-                >
-                  <FaChevronLeft />
-                </button>
-                <button
-                  className="post-carousel-btn post-carousel-btn--right"
-                  onClick={() => changeSlide(item.id, item.images.length, 1)}
-                  type="button"
-                >
-                  <FaChevronRight />
-                </button>
-                <span className="post-carousel-counter">
-                  {(carouselIndexes[item.id] || 0) + 1}/{item.images.length}
-                </span>
-              </>
-            )}
-          </div>
-
-          <div className="post-bottom">
-            <div className="user-post_actions">
-              <div className="like-actions">
-                <button
-                  onClick={() => handleLike(item.id)}
-                  className={`like-button ${item.liked ? "liked" : ""}`}
-                >
-                  {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
-                </button>
-                <span className="post-like">{formatNumber(item.like)}</span>
-              </div>
-              <span className="post-views__count" title="Ko'rishlar">
-                <BsEye /> {formatNumber(item.views)}
-              </span>
+              <button
+                className="post-menyu_se"
+                onClick={() => setActivePostId(item.id)}
+              >
+                <FaEllipsisV />
+              </button>
             </div>
 
-            <div className="post-coptions">
-              <p>
-                {expandedPost === index
-                  ? item.coptions
-                  : String(item.coptions).length > 100
-                    ? `${String(item.coptions).slice(0, 100)}...`
-                    : String(item.coptions)}
-              </p>
-
-              {String(item.coptions).length > 100 && (
-                <button
-                  className="post-coptions__toggle"
-                  onClick={() =>
-                    setExpandedPost(expandedPost === index ? null : index)
-                  }
-                >
-                  {expandedPost === index ? "yopish" : "ko'proq"}
-                </button>
+            <div className="post-img">
+              <img src={getCurrentImage(item)} alt={item.coptions} />
+              {(item.images || []).length > 1 && (
+                <>
+                  <button
+                    className="post-carousel-btn post-carousel-btn--left"
+                    onClick={() => changeSlide(item.id, item.images.length, -1)}
+                    type="button"
+                  >
+                    <FaChevronLeft />
+                  </button>
+                  <button
+                    className="post-carousel-btn post-carousel-btn--right"
+                    onClick={() => changeSlide(item.id, item.images.length, 1)}
+                    type="button"
+                  >
+                    <FaChevronRight />
+                  </button>
+                  <span className="post-carousel-counter">
+                    {(carouselIndexes[item.id] || 0) + 1}/{item.images.length}
+                  </span>
+                </>
               )}
             </div>
-          </div>
-          <hr className="post-hr" />
+
+            <div className="post-bottom">
+              <div className="user-post_actions">
+                <div className="like-actions">
+                  <button
+                    onClick={() => handleLike(item.id)}
+                    className={`like-button ${item.liked ? "liked" : ""}`}
+                  >
+                    {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
+                  </button>
+                  <span className="post-like">{formatNumber(item.like)}</span>
+                </div>
+                <span className="post-views__count" title="Ko'rishlar">
+                  <BsEye /> {formatNumber(item.views)}
+                </span>
+              </div>
+
+              <div className="post-coptions">
+                <p>
+                  {expandedPost === index
+                    ? item.coptions
+                    : String(item.coptions).length > 100
+                      ? `${String(item.coptions).slice(0, 100)}...`
+                      : String(item.coptions)}
+                </p>
+
+                {String(item.coptions).length > 100 && (
+                  <button
+                    className="post-coptions__toggle"
+                    onClick={() =>
+                      setExpandedPost(expandedPost === index ? null : index)
+                    }
+                  >
+                    {expandedPost === index ? "yopish" : "ko'proq"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <hr className="post-hr" />
           </div>
         ))}
 

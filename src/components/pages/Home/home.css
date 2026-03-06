@@ -116,7 +116,6 @@
   -webkit-user-select: none;
   width: 100%;
   aspect-ratio: 4 / 5;
-  max-height: 640px;
   overflow: hidden;
   background-color: #1a1a1b;
   border-radius: 5px;
@@ -165,6 +164,7 @@
 .post-bottom {
   padding: 0 10px;
 }
+
 .post-coptions p {
   line-height: 1.16rem;
   font-size: 14px;
@@ -245,7 +245,7 @@
 }
 @media screen and (max-width: 750px) {
   .post-container {
-    margin-left: 0;
+    margin: 0 auto;
     padding: 0;
     margin-bottom: 80px;
   }
@@ -257,6 +257,29 @@
   }
   .user-info {
     padding: 0 10px;
+  }
+  .home-feed .post-img {
+    aspect-ratio: 4 / 5;
+    border-radius: 0;
+  }
+  .home-feed .post-img img {
+    border-radius: 0;
+  }
+  .post-carousel-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .post-carousel-btn--left {
+    left: 8px;
+  }
+  .post-carousel-btn--right {
+    right: 8px;
+  }
+  .post-carousel-counter {
+    top: 8px;
+    right: 8px;
+    font-size: 11px;
+    padding: 2px 7px;
   }
 
   .post-coptions p {

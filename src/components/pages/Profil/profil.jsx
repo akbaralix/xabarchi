@@ -22,6 +22,7 @@ import Seo from "../../seo/Seo";
 import "./profil.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
+const BIO_PREVIEW_LIMIT = 100;
 
 const normalizeUsername = (value) =>
   decodeURIComponent(String(value || ""))
@@ -75,6 +76,7 @@ function Profil() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [showProfilePic, setShowProfilePic] = useState(false);
+  const [expandedBio, setExpandedBio] = useState(false);
 
   const handleShowProfilePic = () => {
     setShowProfilePic(true);
@@ -112,6 +114,7 @@ function Profil() {
       setLoading(true);
       setError("");
       setIsEditOpen(false);
+      setExpandedBio(false);
 
       const me = token ? await getUser() : null;
       if (active) setCurrentUser(me);
@@ -308,15 +311,25 @@ function Profil() {
   const profileDescription = user.bio
     ? `${profileName} profili. ${user.bio}`
     : `${profileName} profil sahifasi va postlari.`;
+  const bioText = String(user.bio || "").trim();
+  const shouldTruncateBio = bioText.length > BIO_PREVIEW_LIMIT;
+  const visibleBio = expandedBio
+    ? bioText
+    : shouldTruncateBio
+      ? `${bioText.slice(0, BIO_PREVIEW_LIMIT)}...`
+      : bioText;
 
   return (
     <>
-      <Seo title={`@${profileName}`} description={profileDescription} />
+      <Seo title={`${profileName}`} description={profileDescription} />
       <div className="profil-wrapper">
         <div className="profil-container">
           <div className="profile-top">
             <div className="pofilePic" onClick={handleShowProfilePic}>
-              <img src={user.profilePic || DEFAULT_AVATAR} alt={user.username} />
+              <img
+                src={user.profilePic || DEFAULT_AVATAR}
+                alt={user.username}
+              />
             </div>
             <div className="userActions">
               <div className="userName">
@@ -334,7 +347,7 @@ function Profil() {
                 ) : null}
               </div>
               <div className="profile-bio-block">
-                <h4>{user.firstName || user.username || "Foydalanuvchi"}</h4>
+                <p>{user.firstName || user.username || "Foydalanuvchi"}</p>
               </div>
               <div className="post-actions">
                 <div>
@@ -356,7 +369,20 @@ function Profil() {
               Xabar yuborish
             </button>
           ) : null}
-          {user.bio ? <p className="profile-bio-text">{user.bio}</p> : null}
+          {bioText ? (
+            <div className="profile-bio">
+              <p className="profile-bio-text">{visibleBio}</p>
+              {shouldTruncateBio ? (
+                <button
+                  type="button"
+                  className="profile-bio-toggle"
+                  onClick={() => setExpandedBio((prev) => !prev)}
+                >
+                  {expandedBio ? "yopish" : "ko'proq"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {isOwnProfile && isEditOpen ? (
@@ -429,7 +455,8 @@ function Profil() {
                     src={getPostPreviewImage(item)}
                     alt={item.title || "post"}
                   />
-                  {Array.isArray(item.imageUrls) && item.imageUrls.length > 1 ? (
+                  {Array.isArray(item.imageUrls) &&
+                  item.imageUrls.length > 1 ? (
                     <span className="post-multi-count">
                       {item.imageUrls.length}
                     </span>

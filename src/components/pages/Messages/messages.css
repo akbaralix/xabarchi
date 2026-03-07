@@ -85,16 +85,15 @@
 }
 
 .conversation-item {
-  background: #060408;
+  background: #060606;
   border: none;
-  border-top: 1px solid #2b2b2f;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #fff;
   text-align: left;
-  padding: 8px;
+  padding: 15px 10px;
   display: grid;
   grid-template-columns: 44px 1fr auto;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   transition: 0.3s ease;
 }
@@ -109,8 +108,8 @@
 
 .conversation-item img,
 .chat-header img {
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   object-fit: cover;
 }

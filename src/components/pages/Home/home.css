@@ -21,18 +21,19 @@
 .user-actions img {
   user-select: none;
   -webkit-user-drag: none;
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   object-fit: cover;
 }
 .user-info {
   gap: 12px;
   display: flex;
+  align-items: center;
 }
 
 .user-info h3 {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 500;
 }
 .user-post__createAdd {

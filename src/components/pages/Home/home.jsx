@@ -28,11 +28,11 @@ const formatRelativeTimeUz = (value) => {
   const months = Math.floor(days / 30);
 
   if (minutes < 1) return "hozirgina";
-  if (hours < 1) return `${minutes} daqiqa oldin`;
-  if (days < 1) return `${hours} soat oldin`;
-  if (weeks < 1) return `${days} kun oldin`;
-  if (months < 1) return `${weeks} hafta oldin`;
-  return `${months} oy oldin`;
+  if (hours < 1) return `${minutes} d`;
+  if (days < 1) return `${hours} soat`;
+  if (weeks < 1) return `${days} kun`;
+  if (months < 1) return `${weeks} hafta`;
+  return `${months} oy `;
 };
 
 const mapBackendPost = (item) => {

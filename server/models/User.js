@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema(
     },
     profilePic: { type: String, trim: true, default: "" },
     bio: { type: String, trim: true, maxlength: 300, default: "" },
+    followerChatIds: { type: [Number], default: [] },
+    followingChatIds: { type: [Number], default: [] },
     passwordHash: { type: String },
     passwordSalt: { type: String },
     chatId: { type: Number, required: true, unique: true, index: true },

@@ -11,9 +11,11 @@ import {
   notifySuccess,
 } from "../../../utils/feedback";
 import {
+  followUserByUsername,
   getUser,
   getUserByUsername,
   getUserPostsByUsername,
+  unfollowUserByUsername,
   updateUserProfile,
 } from "../../services/User";
 import { deleteMyPost, getMyPosts } from "../../api/mypost";
@@ -80,6 +82,7 @@ function Profil() {
   const [previewPost, setPreviewPost] = useState(null);
   const [expandedBio, setExpandedBio] = useState(false);
   const [postImageIndexes, setPostImageIndexes] = useState({});
+  const [followLoading, setFollowLoading] = useState(false);
 
   const handleShowProfilePic = () => {
     setShowProfilePic(true);
@@ -333,6 +336,46 @@ function Profil() {
     }
   };
 
+  const handleFollowToggle = async () => {
+    if (isOwnProfile || !user?.username || followLoading) return;
+    const token = localStorage.getItem("UserToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setFollowLoading(true);
+    try {
+      if (user.viewerIsFollowing) {
+        const result = await unfollowUserByUsername(user.username);
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                viewerIsFollowing: false,
+                followersCount: Number(result.followersCount || prev.followersCount || 0),
+              }
+            : prev,
+        );
+      } else {
+        const result = await followUserByUsername(user.username);
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                viewerIsFollowing: true,
+                followersCount: Number(result.followersCount || prev.followersCount || 0),
+              }
+            : prev,
+        );
+      }
+    } catch (err) {
+      notifyError(err.message || "Kuzatish amalida xatolik");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   if (error) {
     return (
       <>
@@ -397,20 +440,41 @@ function Profil() {
                   <strong>{posts.length}</strong>
                   <span>post</span>
                 </div>
+                <div>
+                  <strong>{Number(user.followersCount || 0)}</strong>
+                  <span>kuzatuvchi</span>
+                </div>
+                <div>
+                  <strong>{Number(user.followingCount || 0)}</strong>
+                  <span>kuzatmoqda</span>
+                </div>
               </div>
             </div>
           </div>
           {!isOwnProfile ? (
-            <button
-              className="profile-message-btn"
-              onClick={() =>
-                navigate(
-                  `/messages?user=${encodeURIComponent(user.username || "")}`,
-                )
-              }
-            >
-              Xabar yuborish
-            </button>
+            <div className="profile-action-row">
+              <button
+                className={`profile-follow-btn ${user.viewerIsFollowing ? "following" : ""}`}
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+              >
+                {followLoading
+                  ? "..."
+                  : user.viewerIsFollowing
+                    ? "Kuzatilyapti"
+                    : "Kuzatish"}
+              </button>
+              <button
+                className="profile-message-btn"
+                onClick={() =>
+                  navigate(
+                    `/messages?user=${encodeURIComponent(user.username || "")}`,
+                  )
+                }
+              >
+                Xabar yuborish
+              </button>
+            </div>
           ) : null}
           {bioText ? (
             <div className="profile-bio">

@@ -1,9 +1,25 @@
 import express from "express";
 import User from "../models/User.js";
 import Post from "../models/Post.js";
-import { verifyToken } from "../middleware/auth.js";
+import { optionalVerifyToken, verifyToken } from "../middleware/auth.js";
 
 const userRouter = express.Router();
+
+const getFollowSummary = (user, viewerChatId) => {
+  const followerChatIds = Array.isArray(user?.followerChatIds)
+    ? user.followerChatIds
+    : [];
+  const followingChatIds = Array.isArray(user?.followingChatIds)
+    ? user.followingChatIds
+    : [];
+
+  return {
+    followersCount: followerChatIds.length,
+    followingCount: followingChatIds.length,
+    viewerIsFollowing:
+      typeof viewerChatId === "number" ? followerChatIds.includes(viewerChatId) : false,
+  };
+};
 
 const isValidHttpUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return false;
@@ -20,13 +36,17 @@ const isValidHttpUrl = (value) => {
 userRouter.get("/me", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ chatId: req.user.chatId }).select(
-      "firstName chatId username profilePic bio",
+      "firstName chatId username profilePic bio followerChatIds followingChatIds",
     );
 
     if (!user)
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
 
-    res.json(user);
+    const follow = getFollowSummary(user, req.user.chatId);
+    res.json({
+      ...user.toObject(),
+      ...follow,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
@@ -98,7 +118,7 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
   }
 });
 
-userRouter.get("/profile/:username", async (req, res) => {
+userRouter.get("/profile/:username", optionalVerifyToken, async (req, res) => {
   try {
     const username = String(req.params.username || "")
       .trim()
@@ -109,16 +129,130 @@ userRouter.get("/profile/:username", async (req, res) => {
     }
 
     const user = await User.findOne({ username }).select(
-      "firstName chatId username profilePic bio",
+      "firstName chatId username profilePic bio followerChatIds followingChatIds",
     );
     if (!user) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
     }
 
-    return res.json(user);
+    const follow = getFollowSummary(
+      user,
+      Number.isInteger(req.user?.chatId) ? req.user.chatId : null,
+    );
+
+    return res.json({
+      ...user.toObject(),
+      ...follow,
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
+userRouter.post("/profile/:username/follow", verifyToken, async (req, res) => {
+  try {
+    const username = String(req.params.username || "")
+      .trim()
+      .toLowerCase();
+
+    if (!username) {
+      return res.status(400).json({ message: "username talab qilinadi." });
+    }
+
+    const me = await User.findOne({ chatId: req.user.chatId }).select(
+      "chatId username followingChatIds",
+    );
+    if (!me) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    const target = await User.findOne({ username }).select(
+      "chatId username followerChatIds followingChatIds",
+    );
+    if (!target) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    if (target.chatId === me.chatId) {
+      return res.status(400).json({ message: "O'zingizni kuzata olmaysiz." });
+    }
+
+    await User.updateOne(
+      { chatId: me.chatId },
+      { $addToSet: { followingChatIds: target.chatId } },
+    );
+    const updatedTarget = await User.findOneAndUpdate(
+      { chatId: target.chatId },
+      { $addToSet: { followerChatIds: me.chatId } },
+      { new: true },
+    ).select("followerChatIds followingChatIds");
+
+    return res.json({
+      following: true,
+      followersCount: Array.isArray(updatedTarget?.followerChatIds)
+        ? updatedTarget.followerChatIds.length
+        : 0,
+      followingCount: Array.isArray(updatedTarget?.followingChatIds)
+        ? updatedTarget.followingChatIds.length
+        : 0,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Kuzatishda xatolik yuz berdi!" });
+  }
+});
+
+userRouter.delete("/profile/:username/follow", verifyToken, async (req, res) => {
+  try {
+    const username = String(req.params.username || "")
+      .trim()
+      .toLowerCase();
+
+    if (!username) {
+      return res.status(400).json({ message: "username talab qilinadi." });
+    }
+
+    const me = await User.findOne({ chatId: req.user.chatId }).select(
+      "chatId username followingChatIds",
+    );
+    if (!me) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    const target = await User.findOne({ username }).select(
+      "chatId username followerChatIds followingChatIds",
+    );
+    if (!target) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    if (target.chatId === me.chatId) {
+      return res.status(400).json({ message: "O'zingizni kuzata olmaysiz." });
+    }
+
+    await User.updateOne(
+      { chatId: me.chatId },
+      { $pull: { followingChatIds: target.chatId } },
+    );
+    const updatedTarget = await User.findOneAndUpdate(
+      { chatId: target.chatId },
+      { $pull: { followerChatIds: me.chatId } },
+      { new: true },
+    ).select("followerChatIds followingChatIds");
+
+    return res.json({
+      following: false,
+      followersCount: Array.isArray(updatedTarget?.followerChatIds)
+        ? updatedTarget.followerChatIds.length
+        : 0,
+      followingCount: Array.isArray(updatedTarget?.followingChatIds)
+        ? updatedTarget.followingChatIds.length
+        : 0,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Kuzatishni bekor qilishda xatolik!" });
   }
 });
 

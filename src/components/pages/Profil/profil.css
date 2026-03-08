@@ -113,7 +113,9 @@
 
 .profile-action-row {
   display: flex;
-  max-width: 260px;
+  max-width: 460px;
+  gap: 10px;
+  margin: 10px;
 }
 
 .profile-message-btn {
@@ -127,6 +129,32 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  flex: 1;
+}
+
+.profile-follow-btn {
+  border: 1px solid #2e6aff;
+  height: 40px;
+  margin-top: 10px;
+  background: #2e6aff;
+  color: #fff;
+  border-radius: 11px;
+  padding: 11px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+}
+
+.profile-follow-btn.following {
+  background: transparent;
+  border-color: #4f5f7a;
+  color: #e6ecf8;
+}
+
+.profile-follow-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .profile-bio-editcontainer {
@@ -508,6 +536,12 @@
   }
 
   .profile-message-btn {
+    font-size: 14px;
+    height: 36px;
+    margin-top: 12px;
+    padding: 10px 12px;
+  }
+  .profile-follow-btn {
     font-size: 14px;
     height: 36px;
     margin-top: 12px;

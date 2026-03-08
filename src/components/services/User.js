@@ -4,6 +4,14 @@ import { normalizeImageUrl } from "./imageUrl";
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
+const normalizeUserPayload = (data) => ({
+  ...data,
+  profilePic: normalizeImageUrl(data?.profilePic),
+  followersCount: Number(data?.followersCount || 0),
+  followingCount: Number(data?.followingCount || 0),
+  viewerIsFollowing: Boolean(data?.viewerIsFollowing),
+});
+
 export const getUser = async () => {
   const token = localStorage.getItem("UserToken");
   if (!token) return null;
@@ -22,10 +30,7 @@ export const getUser = async () => {
 
     if (!res.ok) return null;
     const data = await res.json();
-    const normalized = {
-      ...data,
-      profilePic: normalizeImageUrl(data?.profilePic),
-    };
+    const normalized = normalizeUserPayload(data);
     setCached(cacheKey, normalized, 5 * 60_000);
     return normalized;
   } catch {
@@ -51,10 +56,7 @@ export const updateUserProfile = async ({ profilePic, bio, firstName }) => {
     throw new Error(data.message || "Profilni yangilashda xatolik");
   }
 
-  const normalized = {
-    ...data,
-    profilePic: normalizeImageUrl(data?.profilePic),
-  };
+  const normalized = normalizeUserPayload(data);
 
   invalidateCache("user:");
   invalidateCache("posts:");
@@ -73,19 +75,81 @@ export const getUserByUsername = async (username) => {
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const response = await fetch(`${API_BASE}/profile/${encodeURIComponent(normalized)}`);
+  const token = localStorage.getItem("UserToken");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const response = await fetch(`${API_BASE}/profile/${encodeURIComponent(normalized)}`, {
+    headers,
+  });
   if (!response.ok) return null;
 
   const data = await response.json().catch(() => null);
   if (!data) return null;
 
-  const normalizedData = {
-    ...data,
-    profilePic: normalizeImageUrl(data?.profilePic),
-  };
+  const normalizedData = normalizeUserPayload(data);
 
   setCached(cacheKey, normalizedData, 5 * 60_000);
   return normalizedData;
+};
+
+export const followUserByUsername = async (username) => {
+  const token = localStorage.getItem("UserToken");
+  if (!token) throw new Error("Login talab qilinadi");
+
+  const normalized = String(username || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) throw new Error("Username topilmadi");
+
+  const response = await fetch(
+    `${API_BASE}/profile/${encodeURIComponent(normalized)}/follow`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Kuzatishda xatolik");
+  }
+
+  invalidateCache("user:");
+  invalidateCache("posts:");
+  return data;
+};
+
+export const unfollowUserByUsername = async (username) => {
+  const token = localStorage.getItem("UserToken");
+  if (!token) throw new Error("Login talab qilinadi");
+
+  const normalized = String(username || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) throw new Error("Username topilmadi");
+
+  const response = await fetch(
+    `${API_BASE}/profile/${encodeURIComponent(normalized)}/follow`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Kuzatishni bekor qilishda xatolik");
+  }
+
+  invalidateCache("user:");
+  invalidateCache("posts:");
+  return data;
 };
 
 export const getUserPostsByUsername = async (username) => {

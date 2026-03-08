@@ -412,19 +412,21 @@ function Profil() {
                   {uploadingPhoto ? "..." : <BsCamera />}
                 </button>
               </div>
-              <label htmlFor="">Ismni taxrirlash</label>
+              <label htmlFor="userNameEdit">Ismni taxrirlash</label>
               <input
                 type="text"
                 maxLength={120}
                 placeholder="Ism"
+                id="userNameEdit"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="profile-firstname-input"
               />
-              <label htmlFor="">Bio </label>
+              <label htmlFor="bioEdit">Bio </label>
               <textarea
-                maxLength={300}
+                maxLength={200}
                 placeholder="Bio yozing..."
+                id="bioEdit"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
               />

@@ -7,6 +7,20 @@
   justify-content: center;
   flex-direction: column;
 }
+.home-section-title {
+  width: 100%;
+  padding: 6px 14px 10px;
+  color: #c8d0df;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.home-empty-following {
+  width: 100%;
+  padding: 8px 14px 12px;
+  color: #9aa4b8;
+  font-size: 14px;
+}
 .post-item {
   width: 100%;
   padding: 10px 15px;
@@ -39,6 +53,23 @@
 .user-post__createAdd {
   font-size: 13px;
   font-family: Arial, Helvetica, sans-serif;
+}
+.post-follow-menyu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.post-follow-menyu .follow-btn {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.post-follow-menyu .follow-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 .post-menyu_se {
   background-color: #0b0b0bcd;

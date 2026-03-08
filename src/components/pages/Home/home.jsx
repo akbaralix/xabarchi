@@ -11,9 +11,16 @@ import { formatNumber } from "../../services/formatNumber";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
+import { followUserByUsername, getUser } from "../../services/User";
 import Seo from "../../seo/Seo";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
+
+const normalizeUsername = (value) =>
+  String(value || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
 
 const formatRelativeTimeUz = (value) => {
   if (!value) return "hozirgina";
@@ -102,6 +109,9 @@ const ReportModal = ({ postId, onClose }) => {
 
 function Home({ enableSeo = true }) {
   const [post, setPost] = useState([]);
+  const [myUsername, setMyUsername] = useState("");
+  const [followingUsernames, setFollowingUsernames] = useState(new Set());
+  const [followLoadingMap, setFollowLoadingMap] = useState({});
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
   const [carouselIndexes, setCarouselIndexes] = useState({});
@@ -147,6 +157,42 @@ function Home({ enableSeo = true }) {
 
   useEffect(() => {
     let cancelled = false;
+    const token = localStorage.getItem("UserToken");
+
+    const fetchMe = async () => {
+      if (!token) {
+        if (!cancelled) {
+          setMyUsername("");
+          setFollowingUsernames(new Set());
+        }
+        return;
+      }
+      const me = await getUser();
+      if (!me || cancelled) return;
+
+      setMyUsername(normalizeUsername(me.username));
+      const following = Array.isArray(me.followingChatIds) ? me.followingChatIds : [];
+      const postsData = await getPosts();
+      if (!Array.isArray(postsData) || cancelled) return;
+      const mapped = postsData.map(mapBackendPost);
+      const chatIdToUsername = new Map(
+        postsData
+          .map((item, index) => {
+            const chatId = Number(item.authorChatId);
+            const username = normalizeUsername(mapped[index]?.userName);
+            return [chatId, username];
+          })
+          .filter(([chatId, username]) => Number.isInteger(chatId) && username),
+      );
+      const nextSet = new Set();
+      following.forEach((chatId) => {
+        const username = chatIdToUsername.get(Number(chatId));
+        if (username) nextSet.add(username);
+      });
+      setFollowingUsernames(nextSet);
+      setPost(mapped);
+    };
+
     const fetchPosts = async () => {
       try {
         const data = await getPosts();
@@ -157,9 +203,11 @@ function Home({ enableSeo = true }) {
       }
     };
 
-    fetchPosts();
+    if (token) fetchMe();
+    else fetchPosts();
     const refreshPosts = () => {
-      fetchPosts();
+      if (token) fetchMe();
+      else fetchPosts();
     };
     window.addEventListener("post-created", refreshPosts);
     return () => {
@@ -167,6 +215,31 @@ function Home({ enableSeo = true }) {
       window.removeEventListener("post-created", refreshPosts);
     };
   }, []);
+
+  const handleFollowFromFeed = async (userName) => {
+    const normalized = normalizeUsername(userName);
+    if (!normalized) return;
+    const token = localStorage.getItem("UserToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    if (followLoadingMap[normalized]) return;
+    setFollowLoadingMap((prev) => ({ ...prev, [normalized]: true }));
+    try {
+      await followUserByUsername(normalized);
+      setFollowingUsernames((prev) => {
+        const next = new Set(prev);
+        next.add(normalized);
+        return next;
+      });
+    } catch (error) {
+      notifyError(error.message || "Kuzatishda xatolik");
+    } finally {
+      setFollowLoadingMap((prev) => ({ ...prev, [normalized]: false }));
+    }
+  };
 
   const handleLike = async (id) => {
     const token = localStorage.getItem("UserToken");
@@ -251,124 +324,155 @@ function Home({ enableSeo = true }) {
     observerRef.current.observe(node);
   }, []);
 
+  const followedPosts = post.filter((item) =>
+    followingUsernames.has(normalizeUsername(item.userName)),
+  );
+  const suggestedPosts = post.filter((item) => {
+    const username = normalizeUsername(item.userName);
+    if (!username) return false;
+    if (username === myUsername) return false;
+    return !followingUsernames.has(username);
+  });
+
+  const renderPostItem = (item, index, isSuggested = false) => {
+    const normalizedUser = normalizeUsername(item.userName);
+    const followLoading = Boolean(followLoadingMap[normalizedUser]);
+    return (
+      <div className="post-item" key={`${item.id}-${index}`} data-post-id={item.id} ref={observePost}>
+        <div className="user-actions">
+          <div className="user-info">
+            <div className="user-img-wrapper">
+              <img src={item.profilePic} alt={item.userName} />
+            </div>
+            <div className="user-p">
+              <h3
+                onClick={() => navigate(`/${encodeURIComponent(item.userName)}`)}
+                style={{ cursor: "pointer" }}
+              >
+                {item.userName}
+              </h3>
+              <p className="user-post__createAdd">{item.createAdd}</p>
+            </div>
+          </div>
+          <div className="post-follow-menyu">
+            {isSuggested ? (
+              <button
+                className="follow-btn"
+                onClick={() => handleFollowFromFeed(item.userName)}
+                disabled={followLoading}
+              >
+                {followLoading ? "..." : "kuzatish"}
+              </button>
+            ) : null}
+            <button className="post-menyu_se" onClick={() => setActivePostId(item.id)}>
+              <FaEllipsisV />
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="post-img"
+          onTouchStart={handlePostTouchStart}
+          onTouchEnd={(event) =>
+            handlePostTouchEnd(event, item.id, (item.images || []).length)
+          }
+        >
+          <img src={getCurrentImage(item)} alt={item.coptions} />
+          {(item.images || []).length > 1 && (
+            <>
+              <button
+                className="post-carousel-btn post-carousel-btn--left"
+                onClick={() => changeSlide(item.id, item.images.length, -1)}
+                type="button"
+              >
+                <FaChevronLeft />
+              </button>
+              <button
+                className="post-carousel-btn post-carousel-btn--right"
+                onClick={() => changeSlide(item.id, item.images.length, 1)}
+                type="button"
+              >
+                <FaChevronRight />
+              </button>
+              <div className="post-carousel-dots" aria-hidden="true">
+                {item.images.map((_, dotIndex) => (
+                  <span
+                    key={`${item.id}-dot-${dotIndex}`}
+                    className={`post-carousel-dot ${
+                      (carouselIndexes[item.id] || 0) === dotIndex ? "active" : ""
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="post-bottom">
+          <div className="user-post_actions">
+            <div className="like-actions">
+              <button
+                onClick={() => handleLike(item.id)}
+                className={`like-button ${item.liked ? "liked" : ""}`}
+              >
+                {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
+              </button>
+              <span className="post-like">{formatNumber(item.like)}</span>
+            </div>
+            <span className="post-views__count" title="Ko'rishlar">
+              <BsEye /> {formatNumber(item.views)}
+            </span>
+          </div>
+
+          <div className="post-coptions">
+            <p>
+              {expandedPost === index
+                ? item.coptions
+                : String(item.coptions).length > 100
+                  ? `${String(item.coptions).slice(0, 100)}...`
+                  : String(item.coptions)}
+            </p>
+
+            {String(item.coptions).length > 100 && (
+              <button
+                className="post-coptions__toggle"
+                onClick={() => setExpandedPost(expandedPost === index ? null : index)}
+              >
+                {expandedPost === index ? "yopish" : "ko'proq"}
+              </button>
+            )}
+          </div>
+        </div>
+        <hr className="post-hr" />
+      </div>
+    );
+  };
+
   return (
     <>
       {enableSeo ? (
         <Seo description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar." />
       ) : null}
       <div className="post-container home-feed">
-        {post.map((item, index) => (
-          <div
-            className="post-item"
-            key={item.id}
-            data-post-id={item.id}
-            ref={observePost}
-          >
-            <div className="user-actions">
-              <div className="user-info">
-                <div className="user-img-wrapper">
-                  <img src={item.profilePic} alt={item.userName} />
-                </div>
-                <div className="user-p">
-                  <h3
-                    onClick={() =>
-                      navigate(`/${encodeURIComponent(item.userName)}`)
-                    }
-                    style={{ cursor: "pointer" }}
-                  >
-                    {item.userName}
-                  </h3>
-                  <p className="user-post__createAdd">{item.createAdd}</p>
-                </div>
-              </div>
-              <button
-                className="post-menyu_se"
-                onClick={() => setActivePostId(item.id)}
-              >
-                <FaEllipsisV />
-              </button>
-            </div>
+        {followedPosts.length ? (
+          <>
+            <div className="home-section-title">Kuzatayotganlaringiz</div>
+            {followedPosts.map((item, index) => renderPostItem(item, index, false))}
+          </>
+        ) : myUsername ? (
+          <p className="home-empty-following">
+            Hozircha kuzatayotgan foydalanuvchilar postingiz yo'q.
+          </p>
+        ) : null}
 
-            <div
-              className="post-img"
-              onTouchStart={handlePostTouchStart}
-              onTouchEnd={(event) =>
-                handlePostTouchEnd(event, item.id, (item.images || []).length)
-              }
-            >
-              <img src={getCurrentImage(item)} alt={item.coptions} />
-              {(item.images || []).length > 1 && (
-                <>
-                  <button
-                    className="post-carousel-btn post-carousel-btn--left"
-                    onClick={() => changeSlide(item.id, item.images.length, -1)}
-                    type="button"
-                  >
-                    <FaChevronLeft />
-                  </button>
-                  <button
-                    className="post-carousel-btn post-carousel-btn--right"
-                    onClick={() => changeSlide(item.id, item.images.length, 1)}
-                    type="button"
-                  >
-                    <FaChevronRight />
-                  </button>
-                  <div className="post-carousel-dots" aria-hidden="true">
-                    {item.images.map((_, dotIndex) => (
-                      <span
-                        key={`${item.id}-dot-${dotIndex}`}
-                        className={`post-carousel-dot ${
-                          (carouselIndexes[item.id] || 0) === dotIndex
-                            ? "active"
-                            : ""
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="post-bottom">
-              <div className="user-post_actions">
-                <div className="like-actions">
-                  <button
-                    onClick={() => handleLike(item.id)}
-                    className={`like-button ${item.liked ? "liked" : ""}`}
-                  >
-                    {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
-                  </button>
-                  <span className="post-like">{formatNumber(item.like)}</span>
-                </div>
-                <span className="post-views__count" title="Ko'rishlar">
-                  <BsEye /> {formatNumber(item.views)}
-                </span>
-              </div>
-
-              <div className="post-coptions">
-                <p>
-                  {expandedPost === index
-                    ? item.coptions
-                    : String(item.coptions).length > 100
-                      ? `${String(item.coptions).slice(0, 100)}...`
-                      : String(item.coptions)}
-                </p>
-
-                {String(item.coptions).length > 100 && (
-                  <button
-                    className="post-coptions__toggle"
-                    onClick={() =>
-                      setExpandedPost(expandedPost === index ? null : index)
-                    }
-                  >
-                    {expandedPost === index ? "yopish" : "ko'proq"}
-                  </button>
-                )}
-              </div>
-            </div>
-            <hr className="post-hr" />
-          </div>
-        ))}
+        {suggestedPosts.length ? (
+          <>
+            <div className="home-section-title">Siz uchun tavsiya</div>
+            {suggestedPosts.map((item, index) =>
+              renderPostItem(item, index + followedPosts.length, true),
+            )}
+          </>
+        ) : null}
 
         {activePostId && (
           <>

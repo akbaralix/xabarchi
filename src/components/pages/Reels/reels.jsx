@@ -9,6 +9,8 @@ import Seo from "../../seo/Seo";
 import "./reels.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
+const SWIPE_THRESHOLD = 50;
+const REEL_TRANSITION_MS = 320;
 
 const mapBackendPost = (item) => {
   const images = Array.isArray(item.imageUrls)
@@ -27,6 +29,7 @@ const mapBackendPost = (item) => {
     id: item._id || item.id,
     userName: item.userName || item.UserName || "Siz",
     profilePic: item.profilePic || DEFAULT_AVATAR,
+    images: mergedImages,
     image: mergedImages[0] || "",
     caption: item.title || item.coptions || "",
     like: Number(item.likes ?? item.like ?? 0),
@@ -38,8 +41,14 @@ const mapBackendPost = (item) => {
 function Reels() {
   const [posts, setPosts] = useState([]);
   const [expandedCaptionId, setExpandedCaptionId] = useState(null);
-  const observerRef = useRef(null);
+  const [carouselIndexes, setCarouselIndexes] = useState({});
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isReelLocked, setIsReelLocked] = useState(false);
   const viewedPostIdsRef = useRef(new Set());
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const touchAxisRef = useRef(null);
+  const touchPostIdRef = useRef("");
+  const lockTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -127,25 +136,103 @@ function Reels() {
     }
   }, []);
 
+  const goToReel = useCallback(
+    (nextIndex) => {
+      if (isReelLocked || !posts.length) return;
+      const safeIndex = Math.max(0, Math.min(posts.length - 1, nextIndex));
+      if (safeIndex === activeIndex) return;
+      setIsReelLocked(true);
+      setActiveIndex(safeIndex);
+      window.clearTimeout(lockTimeoutRef.current);
+      lockTimeoutRef.current = window.setTimeout(() => {
+        setIsReelLocked(false);
+      }, REEL_TRANSITION_MS);
+    },
+    [activeIndex, isReelLocked, posts.length],
+  );
+
   useEffect(() => {
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting || entry.intersectionRatio < 0.7) return;
-          const postId = entry.target.getAttribute("data-post-id");
-          handleView(postId);
-        });
-      },
-      { threshold: [0.7] },
-    );
-
-    return () => observerRef.current?.disconnect();
-  }, [handleView]);
-
-  const observePost = useCallback((node) => {
-    if (!node || !observerRef.current) return;
-    observerRef.current.observe(node);
+    return () => {
+      window.clearTimeout(lockTimeoutRef.current);
+    };
   }, []);
+
+  useEffect(() => {
+    const currentPostId = posts[activeIndex]?.id;
+    if (currentPostId) handleView(currentPostId);
+  }, [activeIndex, posts, handleView]);
+
+  useEffect(() => {
+    if (!posts.length && activeIndex !== 0) {
+      setActiveIndex(0);
+      return;
+    }
+    if (activeIndex > posts.length - 1) {
+      setActiveIndex(Math.max(0, posts.length - 1));
+    }
+  }, [activeIndex, posts.length]);
+
+  const handleTouchStart = (event) => {
+    touchStartRef.current = {
+      x: event.touches[0]?.clientX || 0,
+      y: event.touches[0]?.clientY || 0,
+    };
+    touchAxisRef.current = null;
+    const touchedCard = event.target.closest?.(".reel-card");
+    touchPostIdRef.current = touchedCard?.getAttribute("data-post-id") || "";
+  };
+
+  const handleTouchMove = (event) => {
+    const currentX = event.touches[0]?.clientX || 0;
+    const currentY = event.touches[0]?.clientY || 0;
+    const deltaX = currentX - touchStartRef.current.x;
+    const deltaY = currentY - touchStartRef.current.y;
+
+    if (!touchAxisRef.current) {
+      if (Math.abs(deltaX) > Math.abs(deltaY) + 6) touchAxisRef.current = "x";
+      else if (Math.abs(deltaY) > Math.abs(deltaX) + 6)
+        touchAxisRef.current = "y";
+    }
+
+    if (touchAxisRef.current === "y") {
+      event.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = (event) => {
+    const endX = event.changedTouches[0]?.clientX || 0;
+    const endY = event.changedTouches[0]?.clientY || 0;
+    const deltaX = touchStartRef.current.x - endX;
+    const deltaY = touchStartRef.current.y - endY;
+
+    if (
+      (touchAxisRef.current === "x" || Math.abs(deltaX) > Math.abs(deltaY)) &&
+      Math.abs(deltaX) > 40
+    ) {
+      const postId = touchPostIdRef.current;
+      if (!postId) return;
+      const targetPost = posts.find((item) => item.id === postId);
+      const total = targetPost?.images?.length || 0;
+      if (total <= 1) return;
+
+      setCarouselIndexes((prev) => {
+        const current = prev[postId] || 0;
+        const next = (current + (deltaX > 0 ? 1 : -1) + total) % total;
+        return { ...prev, [postId]: next };
+      });
+      return;
+    }
+
+    if (Math.abs(deltaY) < SWIPE_THRESHOLD) return;
+    const direction = deltaY > 0 ? 1 : -1;
+    goToReel(activeIndex + direction);
+  };
+
+  const handleWheel = (event) => {
+    if (Math.abs(event.deltaY) < 18) return;
+    event.preventDefault();
+    goToReel(activeIndex + (event.deltaY > 0 ? 1 : -1));
+  };
 
   return (
     <>
@@ -154,16 +241,40 @@ function Reels() {
         description="Xabarchi reels uslubidagi postlar oqimi."
       />
       <section className="reels-page">
-        <div className="reels-track">
+        <div
+          className="reels-track"
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            transform: `translate3d(0, -${activeIndex * 100}dvh, 0)`,
+          }}
+        >
           {posts.map((item) => (
             <article
               key={item.id}
               className="reel-card"
               data-post-id={item.id}
-              ref={observePost}
             >
-              <img className="reel-media" src={item.image} alt={item.caption} />
+              <img
+                className="reel-media"
+                src={item.images?.[carouselIndexes[item.id] || 0] || item.image}
+                alt={item.caption}
+              />
               <div className="reel-shadow" />
+              {(item.images || []).length > 1 ? (
+                <div className="reel-image-dots" aria-hidden="true">
+                  {item.images.map((_, dotIndex) => (
+                    <span
+                      key={`${item.id}-dot-${dotIndex}`}
+                      className={`reel-image-dot ${
+                        (carouselIndexes[item.id] || 0) === dotIndex ? "active" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
               <div className="reel-meta">
                 <div className="reel-user">
@@ -182,7 +293,7 @@ function Reels() {
                       navigate(`/${encodeURIComponent(item.userName)}`)
                     }
                   >
-                    @{item.userName}
+                    {item.userName}
                   </button>
                 </div>
                 {item.caption ? (
@@ -190,7 +301,9 @@ function Reels() {
                     className={`reel-caption ${expandedCaptionId === item.id ? "expanded" : ""}`}
                     type="button"
                     onClick={() =>
-                      setExpandedCaptionId((prev) => (prev === item.id ? null : item.id))
+                      setExpandedCaptionId((prev) =>
+                        prev === item.id ? null : item.id,
+                      )
                     }
                   >
                     {item.caption}

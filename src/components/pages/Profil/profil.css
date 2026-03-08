@@ -30,6 +30,7 @@
   border-radius: 50%;
   border: 4px solid #05090f;
   object-fit: cover;
+  object-position: center;
 }
 
 .userActions {
@@ -181,6 +182,7 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 
 .profil-photo-addbtn {
@@ -251,6 +253,7 @@
 }
 
 .post-imgs {
+  position: relative;
   width: 100%;
   height: 100%;
 }
@@ -259,6 +262,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .post-multi-count {
@@ -270,6 +274,33 @@
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
+  z-index: 2;
+}
+
+.post-image-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.24);
+  z-index: 2;
+}
+
+.post-image-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.post-image-dot.active {
+  background: #fff;
 }
 
 .post-overlay {
@@ -348,6 +379,7 @@
   height: 320px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 
 .profile-image-close {

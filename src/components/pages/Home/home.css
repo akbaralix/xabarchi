@@ -162,6 +162,28 @@
   padding: 2px 8px;
   border-radius: 12px;
 }
+.post-carousel-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 7px;
+  border-radius: 999px;
+}
+.post-carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+.post-carousel-dot.active {
+  background: #ffffff;
+}
 .post-bottom {
   padding: 0 10px;
 }
@@ -281,6 +303,15 @@
     right: 8px;
     font-size: 11px;
     padding: 2px 7px;
+  }
+  .post-carousel-dots {
+    bottom: 8px;
+    gap: 5px;
+    padding: 4px 6px;
+  }
+  .post-carousel-dot {
+    width: 5px;
+    height: 5px;
   }
 
   .post-coptions p {

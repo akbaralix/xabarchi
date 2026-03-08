@@ -50,14 +50,15 @@ const formatRelativeTimeUz = (value) => {
   return `${months} oy oldin`;
 };
 
-const getPostPreviewImage = (item) => {
+const getPostImages = (item) => {
   if (Array.isArray(item?.imageUrls) && item.imageUrls.length > 0) {
-    return item.imageUrls[0];
+    return item.imageUrls.filter(Boolean);
   }
   if (Array.isArray(item?.images) && item.images.length > 0) {
-    return item.images[0];
+    return item.images.filter(Boolean);
   }
-  return item?.imageUrl || item?.image || "";
+  const fallback = item?.imageUrl || item?.image || "";
+  return fallback ? [fallback] : [];
 };
 
 function Profil() {
@@ -77,6 +78,7 @@ function Profil() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [showProfilePic, setShowProfilePic] = useState(false);
   const [expandedBio, setExpandedBio] = useState(false);
+  const [postImageIndexes, setPostImageIndexes] = useState({});
 
   const handleShowProfilePic = () => {
     setShowProfilePic(true);
@@ -88,6 +90,8 @@ function Profil() {
   const fileInputRef = useRef(null);
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
   const navigate = useNavigate();
 
   const isOwnProfile =
@@ -239,6 +243,33 @@ function Profil() {
     if (!node || !observerRef.current) return;
     observerRef.current.observe(node);
   }, []);
+
+  const changePostSlide = (postId, total, direction) => {
+    if (total <= 1) return;
+    setPostImageIndexes((prev) => {
+      const current = prev[postId] || 0;
+      const next = (current + direction + total) % total;
+      return {
+        ...prev,
+        [postId]: next,
+      };
+    });
+  };
+
+  const handlePostTouchStart = (event) => {
+    touchStartXRef.current = event.touches[0]?.clientX || 0;
+    touchStartYRef.current = event.touches[0]?.clientY || 0;
+  };
+
+  const handlePostTouchEnd = (event, postId, total) => {
+    if (total <= 1) return;
+    const endX = event.changedTouches[0]?.clientX || 0;
+    const endY = event.changedTouches[0]?.clientY || 0;
+    const deltaX = touchStartXRef.current - endX;
+    const deltaY = touchStartYRef.current - endY;
+    if (Math.abs(deltaX) < 35 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    changePostSlide(postId, total, deltaX > 0 ? 1 : -1);
+  };
 
   const handleProfilePicChange = async (event) => {
     if (!isOwnProfile) return;
@@ -445,48 +476,67 @@ function Profil() {
           {loading ? (
             <p className="loading-text">Yuklanmoqda...</p>
           ) : posts.length > 0 ? (
-            posts.map((item) => (
-              <div
-                className="profile-post_item"
-                key={item._id}
-                data-post-id={item._id}
-                ref={observePost}
-              >
-                <div className="post-imgs">
-                  <img
-                    src={getPostPreviewImage(item)}
-                    alt={item.title || "post"}
-                  />
-                  {Array.isArray(item.imageUrls) &&
-                  item.imageUrls.length > 1 ? (
-                    <span className="post-multi-count">
-                      {item.imageUrls.length}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="post-overlay">
-                  <span className="post-time-badge">
-                    {formatRelativeTimeUz(item.createdAt)}
-                  </span>
-                  <div className="post-views">
-                    <BsEye className="views-icon" />
-                    <span className="views-count">
-                      {formatNumber(item.views || 0)}
-                    </span>
+            posts.map((item) => {
+              const images = getPostImages(item);
+              const total = images.length;
+              const currentIndex = postImageIndexes[item._id] || 0;
+              const currentImage = images[currentIndex] || images[0] || "";
+
+              return (
+                <div
+                  className="profile-post_item"
+                  key={item._id}
+                  data-post-id={item._id}
+                  ref={observePost}
+                >
+                  <div
+                    className="post-imgs"
+                    onTouchStart={handlePostTouchStart}
+                    onTouchEnd={(event) =>
+                      handlePostTouchEnd(event, item._id, total)
+                    }
+                  >
+                    <img src={currentImage} alt={item.title || "post"} />
+                    {total > 1 ? (
+                      <>
+                        <span className="post-multi-count">{total}</span>
+                        <div className="post-image-dots" aria-hidden="true">
+                          {images.map((_, dotIndex) => (
+                            <span
+                              key={`${item._id}-dot-${dotIndex}`}
+                              className={`post-image-dot ${
+                                currentIndex === dotIndex ? "active" : ""
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
-                  {isOwnProfile ? (
-                    <button
-                      className="post-delete-btn"
-                      onClick={() => handleDelete(item._id)}
-                      disabled={deletingId === item._id}
-                    >
-                      <FiTrash2 />
-                      {deletingId === item._id ? "O'chirilmoqda..." : ""}
-                    </button>
-                  ) : null}
+                  <div className="post-overlay">
+                    <span className="post-time-badge">
+                      {formatRelativeTimeUz(item.createdAt)}
+                    </span>
+                    <div className="post-views">
+                      <BsEye className="views-icon" />
+                      <span className="views-count">
+                        {formatNumber(item.views || 0)}
+                      </span>
+                    </div>
+                    {isOwnProfile ? (
+                      <button
+                        className="post-delete-btn"
+                        onClick={() => handleDelete(item._id)}
+                        disabled={deletingId === item._id}
+                      >
+                        <FiTrash2 />
+                        {deletingId === item._id ? "O'chirilmoqda..." : ""}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="no-posts">
               <p>Hozircha postlar yo'q</p>

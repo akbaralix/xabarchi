@@ -105,6 +105,8 @@ function Home({ enableSeo = true }) {
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
   const [carouselIndexes, setCarouselIndexes] = useState({});
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
   const navigate = useNavigate();
@@ -126,6 +128,21 @@ function Home({ enableSeo = true }) {
         [postId]: next,
       };
     });
+  };
+
+  const handlePostTouchStart = (event) => {
+    touchStartXRef.current = event.touches[0]?.clientX || 0;
+    touchStartYRef.current = event.touches[0]?.clientY || 0;
+  };
+
+  const handlePostTouchEnd = (event, postId, total) => {
+    if (total <= 1) return;
+    const endX = event.changedTouches[0]?.clientX || 0;
+    const endY = event.changedTouches[0]?.clientY || 0;
+    const deltaX = touchStartXRef.current - endX;
+    const deltaY = touchStartYRef.current - endY;
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    changeSlide(postId, total, deltaX > 0 ? 1 : -1);
   };
 
   useEffect(() => {
@@ -272,7 +289,13 @@ function Home({ enableSeo = true }) {
               </button>
             </div>
 
-            <div className="post-img">
+            <div
+              className="post-img"
+              onTouchStart={handlePostTouchStart}
+              onTouchEnd={(event) =>
+                handlePostTouchEnd(event, item.id, (item.images || []).length)
+              }
+            >
               <img src={getCurrentImage(item)} alt={item.coptions} />
               {(item.images || []).length > 1 && (
                 <>
@@ -290,9 +313,18 @@ function Home({ enableSeo = true }) {
                   >
                     <FaChevronRight />
                   </button>
-                  <span className="post-carousel-counter">
-                    {(carouselIndexes[item.id] || 0) + 1}/{item.images.length}
-                  </span>
+                  <div className="post-carousel-dots" aria-hidden="true">
+                    {item.images.map((_, dotIndex) => (
+                      <span
+                        key={`${item.id}-dot-${dotIndex}`}
+                        className={`post-carousel-dot ${
+                          (carouselIndexes[item.id] || 0) === dotIndex
+                            ? "active"
+                            : ""
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </>
               )}
             </div>

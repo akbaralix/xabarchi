@@ -108,7 +108,8 @@
   border: none;
   background: none;
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
 }

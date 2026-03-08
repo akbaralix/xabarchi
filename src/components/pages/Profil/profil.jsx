@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BsCamera, BsEye } from "react-icons/bs";
+import { BsCamera, BsEye, BsHeart } from "react-icons/bs";
 import { FaPen, FaTimes } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
 import { formatNumber } from "../../services/formatNumber";
@@ -77,6 +77,7 @@ function Profil() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [showProfilePic, setShowProfilePic] = useState(false);
+  const [previewPost, setPreviewPost] = useState(null);
   const [expandedBio, setExpandedBio] = useState(false);
   const [postImageIndexes, setPostImageIndexes] = useState({});
 
@@ -86,6 +87,17 @@ function Profil() {
 
   const handleCloseProfilePic = () => {
     setShowProfilePic(false);
+  };
+  const handleOpenPostImage = (imageUrl, item) => {
+    if (!imageUrl) return;
+    setPreviewPost({
+      image: imageUrl,
+      views: Number(item?.views || 0),
+      likes: Number(item?.likes ?? item?.like ?? 0),
+    });
+  };
+  const handleClosePostImage = () => {
+    setPreviewPost(null);
   };
   const fileInputRef = useRef(null);
   const observerRef = useRef(null);
@@ -496,7 +508,11 @@ function Profil() {
                       handlePostTouchEnd(event, item._id, total)
                     }
                   >
-                    <img src={currentImage} alt={item.title || "post"} />
+                    <img
+                      onClick={() => handleOpenPostImage(currentImage, item)}
+                      src={currentImage}
+                      alt={item.title || "post"}
+                    />
                     {total > 1 ? (
                       <>
                         <span className="post-multi-count">{total}</span>
@@ -559,6 +575,36 @@ function Profil() {
               alt={user.username || "profile"}
               onClick={(event) => event.stopPropagation()}
             />
+          </div>
+        ) : null}
+        {previewPost ? (
+          <div className="post-image-modal" onClick={handleClosePostImage}>
+            <button
+              type="button"
+              className="profile-image-close"
+              onClick={handleClosePostImage}
+              aria-label="Yopish"
+            >
+              <FaTimes />
+            </button>
+            <div
+              className="post-image-modal-content"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <img
+                className="post-image-modal-img"
+                src={previewPost.image}
+                alt="post"
+              />
+              <div className="post-image-modal-stats">
+                <span>
+                  <BsHeart /> {formatNumber(previewPost.likes)}
+                </span>
+                <span>
+                  <BsEye /> {formatNumber(previewPost.views)}
+                </span>
+              </div>
+            </div>
           </div>
         ) : null}
       </div>

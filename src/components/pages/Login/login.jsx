@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FcGoogle } from "react-icons/fc";
+
 import { FaTelegram } from "react-icons/fa";
 import { FiX } from "react-icons/fi";
+import { signInWithPopup } from "firebase/auth";
 import {
   completeTelegramSignup,
+  loginWithGoogleToken,
   loginWithPassword,
   loginWithTelegramCode,
 } from "../../api/autoh";
 import Seo from "../../seo/Seo";
+import { auth, googleProvider } from "../../../firebase";
 import "./login.css";
 
 function Login() {
@@ -62,6 +67,25 @@ function Login() {
       persistAndGoProfile(data.token);
     } catch (err) {
       setError(err.message || "Kirishda xatolik yuz berdi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    resetState();
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+      const data = await loginWithGoogleToken(idToken);
+      if (!data?.token) {
+        setError("Token olinmadi.");
+        return;
+      }
+      persistAndGoProfile(data.token);
+    } catch (err) {
+      setError(err.message || "Google orqali kirishda xatolik.");
     } finally {
       setLoading(false);
     }
@@ -163,7 +187,9 @@ function Login() {
                       id="username-login"
                       placeholder=" "
                       value={username}
-                      onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                      onChange={(e) =>
+                        setUsername(e.target.value.toLowerCase())
+                      }
                     />
                     <label htmlFor="username-login">Username</label>
                   </div>
@@ -173,7 +199,9 @@ function Login() {
                       id="password-login"
                       placeholder=" "
                       value={password}
-                      onChange={(e) => setPassword(e.target.value.toLowerCase())}
+                      onChange={(e) =>
+                        setPassword(e.target.value.toLowerCase())
+                      }
                     />
                     <label htmlFor="password-login">Parol</label>
                   </div>
@@ -181,13 +209,24 @@ function Login() {
                     className="primary-auth-btn"
                     onClick={handlePasswordLogin}
                   >
-                    {loading ? <span className="loadingLogin"></span> : "Kirish"}
+                    {loading ? (
+                      <span className="loadingLogin"></span>
+                    ) : (
+                      "Kirish"
+                    )}
                   </button>
                 </div>
               ) : (
-                <div className="telegram-login">
+                <div className="social-login">
                   <button
-                    style={{ fontSize: "1rem" }}
+                    className="google-login-btn"
+                    onClick={handleGoogleLogin}
+                  >
+                    <FcGoogle />
+                    <span>Google orqali kirish</span>
+                  </button>
+                  <button
+                    className="telegram-login-btn"
                     onClick={() => {
                       setShowTelegramFlow(true);
                       resetState();

@@ -58,5 +58,23 @@ export const loginWithPassword = async (username, password) => {
   return data;
 };
 
+export const loginWithGoogleToken = async (idToken) => {
+  const res = await fetch(`${API_BASE}/api/auth/login-google`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      idToken,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Google login xatoligi");
+  }
+
+  return data;
+};
+
 // Backward compatibility
 export const login = loginWithTelegramCode;

@@ -171,7 +171,9 @@ function Home({ enableSeo = true }) {
       if (!me || cancelled) return;
 
       setMyUsername(normalizeUsername(me.username));
-      const following = Array.isArray(me.followingChatIds) ? me.followingChatIds : [];
+      const following = Array.isArray(me.followingChatIds)
+        ? me.followingChatIds
+        : [];
       const postsData = await getPosts();
       if (!Array.isArray(postsData) || cancelled) return;
       const mapped = postsData.map(mapBackendPost);
@@ -338,7 +340,12 @@ function Home({ enableSeo = true }) {
     const normalizedUser = normalizeUsername(item.userName);
     const followLoading = Boolean(followLoadingMap[normalizedUser]);
     return (
-      <div className="post-item" key={`${item.id}-${index}`} data-post-id={item.id} ref={observePost}>
+      <div
+        className="post-item"
+        key={`${item.id}-${index}`}
+        data-post-id={item.id}
+        ref={observePost}
+      >
         <div className="user-actions">
           <div className="user-info">
             <div className="user-img-wrapper">
@@ -346,7 +353,9 @@ function Home({ enableSeo = true }) {
             </div>
             <div className="user-p">
               <h3
-                onClick={() => navigate(`/${encodeURIComponent(item.userName)}`)}
+                onClick={() =>
+                  navigate(`/${encodeURIComponent(item.userName)}`)
+                }
                 style={{ cursor: "pointer" }}
               >
                 {item.userName}
@@ -364,7 +373,10 @@ function Home({ enableSeo = true }) {
                 {followLoading ? "..." : "kuzatish"}
               </button>
             ) : null}
-            <button className="post-menyu_se" onClick={() => setActivePostId(item.id)}>
+            <button
+              className="post-menyu_se"
+              onClick={() => setActivePostId(item.id)}
+            >
               <FaEllipsisV />
             </button>
           </div>
@@ -399,7 +411,9 @@ function Home({ enableSeo = true }) {
                   <span
                     key={`${item.id}-dot-${dotIndex}`}
                     className={`post-carousel-dot ${
-                      (carouselIndexes[item.id] || 0) === dotIndex ? "active" : ""
+                      (carouselIndexes[item.id] || 0) === dotIndex
+                        ? "active"
+                        : ""
                     }`}
                   />
                 ))}
@@ -436,7 +450,9 @@ function Home({ enableSeo = true }) {
             {String(item.coptions).length > 100 && (
               <button
                 className="post-coptions__toggle"
-                onClick={() => setExpandedPost(expandedPost === index ? null : index)}
+                onClick={() =>
+                  setExpandedPost(expandedPost === index ? null : index)
+                }
               >
                 {expandedPost === index ? "yopish" : "ko'proq"}
               </button>
@@ -457,12 +473,10 @@ function Home({ enableSeo = true }) {
         {followedPosts.length ? (
           <>
             <div className="home-section-title">Kuzatayotganlaringiz</div>
-            {followedPosts.map((item, index) => renderPostItem(item, index, false))}
+            {followedPosts.map((item, index) =>
+              renderPostItem(item, index, false),
+            )}
           </>
-        ) : myUsername ? (
-          <p className="home-empty-following">
-            Hozircha kuzatayotgan foydalanuvchilar postingiz yo'q.
-          </p>
         ) : null}
 
         {suggestedPosts.length ? (

@@ -3,6 +3,7 @@ import OTP from "../models/OTP.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import admin from "firebase-admin";
 
 const router = express.Router();
 
@@ -10,6 +11,11 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_]{4,24}$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 const normalizeUsername = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const normalizeEmail = (value) =>
   String(value || "")
     .trim()
     .toLowerCase();
@@ -33,6 +39,62 @@ const verifyPassword = (password, salt, expectedHash) => {
     Buffer.from(computed, "hex"),
     Buffer.from(expectedHash, "hex"),
   );
+};
+
+const ensureFirebaseAuth = () => {
+  if (admin.apps.length) {
+    return admin.auth();
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    return null;
+  }
+
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
+  });
+
+  return admin.auth();
+};
+
+const generateRandomPassword = (length = 10) =>
+  crypto.randomBytes(Math.ceil(length / 2)).toString("hex").slice(0, length);
+
+const generateUniqueChatId = async () => {
+  for (let i = 0; i < 20; i += 1) {
+    const candidate = Math.floor(100000000 + Math.random() * 900000000);
+    const exists = await User.exists({ chatId: candidate });
+    if (!exists) return candidate;
+  }
+
+  let fallback = Number(String(Date.now()).slice(-9));
+  while (await User.exists({ chatId: fallback })) {
+    fallback = Math.floor(100000000 + Math.random() * 900000000);
+  }
+  return fallback;
+};
+
+const generateAvailableUsername = async (seed) => {
+  const base = normalizeUsername(seed).replace(/[^a-z0-9_]/g, "");
+  const fallbackBase = base && base.length >= 4 ? base : "user";
+
+  for (let i = 0; i < 20; i += 1) {
+    const suffix = i === 0 ? "" : String(Math.floor(1000 + Math.random() * 9000));
+    const candidate = `${fallbackBase}${suffix}`;
+    if (!validateUsername(candidate)) continue;
+    const exists = await User.exists({ username: candidate });
+    if (!exists) return candidate;
+  }
+
+  return `user${Math.floor(100000 + Math.random() * 900000)}`;
 };
 
 const buildToken = (chatId) =>
@@ -245,6 +307,106 @@ router.post("/api/auth/login-password", async (req, res) => {
         firstName: user.firstName,
         chatId: user.chatId,
         username: user.username || null,
+      },
+    });
+  } catch (err) {
+    if (err?.code?.startsWith?.("auth/")) {
+      return res.status(401).json({ message: "Google token yaroqsiz." });
+    }
+    console.log(err);
+    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
+router.post("/api/auth/login-google", async (req, res) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
+  }
+
+  const { idToken } = req.body || {};
+  if (!idToken) {
+    return res.status(400).json({ message: "idToken kiritilishi kerak!" });
+  }
+
+  const firebaseAuth = ensureFirebaseAuth();
+  if (!firebaseAuth) {
+    return res.status(500).json({ message: "Firebase sozlanmagan!" });
+  }
+
+  try {
+    const decoded = await firebaseAuth.verifyIdToken(idToken);
+    const googleId = decoded?.uid;
+    if (!googleId) {
+      return res.status(401).json({ message: "Google token yaroqsiz." });
+    }
+
+    const email = normalizeEmail(decoded.email || "");
+    let user = await User.findOne({ googleId });
+    if (!user && email) {
+      user = await User.findOne({ email });
+    }
+
+    if (user) {
+      let shouldSave = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        shouldSave = true;
+      }
+      if (email && !user.email) {
+        user.email = email;
+        shouldSave = true;
+      }
+      if (decoded.picture && !user.profilePic) {
+        user.profilePic = decoded.picture;
+        shouldSave = true;
+      }
+      if (decoded.name && !user.firstName) {
+        user.firstName = decoded.name;
+        shouldSave = true;
+      }
+      if (shouldSave) {
+        await user.save();
+      }
+
+      const token = await saveLoginToken(user);
+      return res.json({
+        message: "Login muvaffaqiyatli!",
+        token,
+        user: {
+          firstName: user.firstName,
+          chatId: user.chatId,
+          username: user.username || null,
+        },
+      });
+    }
+
+    const usernameSeed =
+      (email && email.split("@")[0]) || decoded.name || "googleuser";
+    const username = await generateAvailableUsername(usernameSeed);
+    const rawPassword = generateRandomPassword(10);
+    const normalizedPassword = normalizePassword(rawPassword);
+    const { hash, salt } = hashPassword(normalizedPassword);
+
+    const created = await User.create({
+      firstName: decoded.name || "Google User",
+      chatId: await generateUniqueChatId(),
+      username,
+      passwordHash: hash,
+      passwordSalt: salt,
+      googleId,
+      email: email || undefined,
+      profilePic: decoded.picture || "",
+    });
+
+    const token = await saveLoginToken(created);
+
+    return res.status(201).json({
+      message: "Hisob yaratildi va login qilindi!",
+      token,
+      user: {
+        firstName: created.firstName,
+        chatId: created.chatId,
+        username: created.username,
       },
     });
   } catch (err) {

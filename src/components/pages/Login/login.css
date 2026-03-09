@@ -123,27 +123,40 @@
   cursor: pointer;
 }
 
-.telegram-login button {
+.social-login {
+  display: grid;
+  gap: 12px;
+}
+
+.social-login button {
   width: 80%;
   margin: 0 auto;
   padding: 15px;
-  background: var(--tg-blue);
   border-radius: var(--radius-lg);
   border: none;
-  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.google-login-btn {
+  background: #ffffff;
+  color: #111111;
+}
+
+.telegram-login-btn {
+  background: var(--tg-blue);
+  color: white;
 }
 
 .telegram-code-section {
   max-width: 400px;
   width: 100%;
   margin: 0 auto;
-
   position: relative;
 }
 
@@ -187,7 +200,7 @@
 
 @media (max-width: 750px) {
   .login-mode-tabs,
-  .telegram-login button,
+  .social-login button,
   .password-login {
     width: 100%;
   }

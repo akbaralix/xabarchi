@@ -24,7 +24,10 @@ const validateUsername = (value) => USERNAME_REGEX.test(value);
 
 const validatePassword = (value) =>
   typeof value === "string" && value.length >= MIN_PASSWORD_LENGTH;
-const normalizePassword = (value) => String(value || "").trim().toLowerCase();
+const normalizePassword = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -66,7 +69,10 @@ const ensureFirebaseAuth = () => {
 };
 
 const generateRandomPassword = (length = 10) =>
-  crypto.randomBytes(Math.ceil(length / 2)).toString("hex").slice(0, length);
+  crypto
+    .randomBytes(Math.ceil(length / 2))
+    .toString("hex")
+    .slice(0, length);
 
 const generateUniqueChatId = async () => {
   for (let i = 0; i < 20; i += 1) {
@@ -87,7 +93,8 @@ const generateAvailableUsername = async (seed) => {
   const fallbackBase = base && base.length >= 4 ? base : "user";
 
   for (let i = 0; i < 20; i += 1) {
-    const suffix = i === 0 ? "" : String(Math.floor(1000 + Math.random() * 9000));
+    const suffix =
+      i === 0 ? "" : String(Math.floor(1000 + Math.random() * 9000));
     const candidate = `${fallbackBase}${suffix}`;
     if (!validateUsername(candidate)) continue;
     const exists = await User.exists({ username: candidate });
@@ -197,14 +204,15 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
   const normalizedPassword = normalizePassword(password);
   if (!validateUsername(normalizedUsername)) {
     return res.status(400).json({
-      message:
-        "Username 4-24 belgidan iborat bo'lsin (faqat harf, raqam, _).",
+      message: "Username 4-24 belgidan iborat bo'lsin (faqat harf, raqam, _).",
     });
   }
   if (!validatePassword(normalizedPassword)) {
     return res
       .status(400)
-      .json({ message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.` });
+      .json({
+        message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.`,
+      });
   }
 
   try {
@@ -213,7 +221,9 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
       return res.status(400).json({ message: "setupToken yaroqsiz!" });
     }
 
-    const existingByUsername = await User.findOne({ username: normalizedUsername })
+    const existingByUsername = await User.findOne({
+      username: normalizedUsername,
+    })
       .select("_id")
       .lean();
     if (existingByUsername) {
@@ -255,8 +265,13 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
       },
     });
   } catch (err) {
-    if (err?.name === "TokenExpiredError" || err?.name === "JsonWebTokenError") {
-      return res.status(400).json({ message: "setupToken muddati tugagan yoki noto'g'ri." });
+    if (
+      err?.name === "TokenExpiredError" ||
+      err?.name === "JsonWebTokenError"
+    ) {
+      return res
+        .status(400)
+        .json({ message: "setupToken muddati tugagan yoki noto'g'ri." });
     }
     if (err?.code === 11000) {
       return res.status(409).json({ message: "Bu username band." });
@@ -266,163 +281,79 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
   }
 });
 
-router.post("/api/auth/login-password", async (req, res) => {
+router.post("/api/auth/login-google", async (req, res) => {
+  const auth = ensureFirebaseAuth();
+  if (!auth) {
+    return res.status(503).json({ message: "Firebase Admin SDK sozlanmagan." });
+  }
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
   }
 
-  const { username, password } = req.body || {};
-  if (!username || !password) {
+  const { token: idToken } = req.body;
+  if (!idToken) {
     return res
       .status(400)
-      .json({ message: "username va password kiritilishi kerak!" });
-  }
-
-  const normalizedUsername = normalizeUsername(username);
-  const normalizedPassword = normalizePassword(password);
-  if (!validateUsername(normalizedUsername)) {
-    return res.status(400).json({ message: "Username formati noto'g'ri." });
+      .json({ message: "Google ID token yuborilishi kerak." });
   }
 
   try {
-    const user = await User.findOne({ username: normalizedUsername });
-    if (!user) {
-      return res.status(401).json({ message: "Username yoki parol noto'g'ri." });
-    }
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const { uid, email, name, picture } = decodedToken;
 
-    const isValid = verifyPassword(
-      normalizedPassword,
-      user.passwordSalt,
-      user.passwordHash,
-    );
-    if (!isValid) {
-      return res.status(401).json({ message: "Username yoki parol noto'g'ri." });
-    }
+    let user = await User.findOne({ googleUid: uid });
 
-    const token = await saveLoginToken(user);
-    return res.json({
-      message: "Login muvaffaqiyatli!",
-      token,
-      user: {
-        firstName: user.firstName,
-        chatId: user.chatId,
-        username: user.username || null,
-      },
-    });
-  } catch (err) {
-    if (err?.code?.startsWith?.("auth/")) {
-      return res.status(401).json({ message: "Google token yaroqsiz." });
-    }
-    console.log(err);
-    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
-  }
-});
-
-router.post("/api/auth/login-google", async (req, res) => {
-  if (!process.env.JWT_SECRET) {
-    return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
-  }
-
-  const { idToken } = req.body || {};
-  if (!idToken) {
-    return res.status(400).json({ message: "idToken kiritilishi kerak!" });
-  }
-
-  const firebaseAuth = ensureFirebaseAuth();
-  if (!firebaseAuth) {
-    return res.status(500).json({ message: "Firebase sozlanmagan!" });
-  }
-
-  try {
-    const decoded = await firebaseAuth.verifyIdToken(idToken);
-    const googleId = decoded?.uid;
-    if (!googleId) {
-      return res.status(401).json({ message: "Google token yaroqsiz." });
-    }
-
-    const email = normalizeEmail(decoded.email || "");
-    let user = await User.findOne({ googleId });
     if (!user && email) {
-      user = await User.findOne({ email });
+      user = await User.findOne({ email: normalizeEmail(email) });
     }
 
     if (user) {
-      let shouldSave = false;
-      if (!user.googleId) {
-        user.googleId = googleId;
-        shouldSave = true;
-      }
-      if (email && !user.email) {
-        user.email = email;
-        shouldSave = true;
-      }
-      if (decoded.picture && !user.profilePic) {
-        user.profilePic = decoded.picture;
-        shouldSave = true;
-      }
-      if (decoded.name && !user.firstName) {
-        user.firstName = decoded.name;
-        shouldSave = true;
-      }
-      if (shouldSave) {
-        await user.save();
-      }
+      // Foydalanuvchi mavjud, ma'lumotlarini yangilab, tizimga kiritamiz
+      if (!user.googleUid) user.googleUid = uid;
+      if (!user.profilePic && picture) user.profilePic = picture;
+      await user.save();
 
-      const token = await saveLoginToken(user);
-      return res.json({
-        message: "Login muvaffaqiyatli!",
-        token,
-        user: {
-          firstName: user.firstName,
-          chatId: user.chatId,
-          username: user.username || null,
-        },
-      });
+      const appToken = await saveLoginToken(user);
+      return res.json({ message: "Login muvaffaqiyatli!", token: appToken });
     }
 
-    const usernameSeed =
-      (email && email.split("@")[0]) || decoded.name || "googleuser";
-    const username = await generateAvailableUsername(usernameSeed);
-    const rawPassword = generateRandomPassword(10);
-    const normalizedPassword = normalizePassword(rawPassword);
-    const { hash, salt } = hashPassword(normalizedPassword);
+    // Yangi foydalanuvchi, hisob yaratamiz
+    const username = await generateAvailableUsername(
+      name || email.split("@")[0],
+    );
+    const chatId = await generateUniqueChatId();
+    const randomPassword = generateRandomPassword();
+    const { hash, salt } = hashPassword(randomPassword);
 
-    const created = await User.create({
-      firstName: decoded.name || "Google User",
-      chatId: await generateUniqueChatId(),
+    const newUser = await User.create({
+      googleUid: uid,
+      email: normalizeEmail(email),
+      firstName: name || "Google User",
       username,
+      chatId,
+      profilePic: picture || "",
       passwordHash: hash,
       passwordSalt: salt,
-      googleId,
-      email: email || undefined,
-      profilePic: decoded.picture || "",
     });
 
-    const token = await saveLoginToken(created);
-
-    return res.status(201).json({
-      message: "Hisob yaratildi va login qilindi!",
-      token,
-      user: {
-        firstName: created.firstName,
-        chatId: created.chatId,
-        username: created.username,
-      },
-    });
-  } catch (err) {
-    console.log(err);
-    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+    const appToken = await saveLoginToken(newUser);
+    return res
+      .status(201)
+      .json({ message: "Hisob yaratildi va login qilindi!", token: appToken });
+  } catch (error) {
+    console.error("Google login xatoligi:", error);
+    if (
+      error.code === "auth/id-token-expired" ||
+      error.code === "auth/argument-error"
+    ) {
+      return res
+        .status(401)
+        .json({ message: "Google token yaroqsiz yoki muddati o'tgan." });
+    }
+    return res
+      .status(500)
+      .json({ message: "Google orqali kirishda server xatoligi." });
   }
-});
-
-// Backward compatibility for existing frontend usage.
-router.get("/import-code", async (req, res) => {
-  const { code } = req.query;
-  if (!code) {
-    return res.status(400).json({ message: "Kod kiritilishi kerak!" });
-  }
-
-  return loginWithCode(code, res);
 });
 
 export default router;

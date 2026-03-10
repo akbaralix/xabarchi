@@ -206,6 +206,11 @@ app.use(userRouter);
 app.use(postRouter);
 app.use(chatRouter);
 
+app.use(express.static(path.join(__dirname, "..", "dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "dist", "index.html"));
+});
+
 const startServer = async () => {
   await connectDB();
   if (process.env.TELEGRAM_TOKEN) {

@@ -39,6 +39,26 @@ export const completeTelegramSignup = async (setupToken, username, password) => 
   return data;
 };
 
+export const completeGoogleSignup = async (setupToken, username, password) => {
+  const res = await fetch(`${API_BASE}/api/auth/complete-google-signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      setupToken,
+      username,
+      password,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Ro'yxatdan o'tishda xatolik");
+  }
+
+  return data;
+};
+
 export const loginWithPassword = async (username, password) => {
   const res = await fetch(`${API_BASE}/api/auth/login-password`, {
     method: "POST",
@@ -65,7 +85,7 @@ export const loginWithGoogleToken = async (idToken) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      idToken,
+      token: idToken,
     }),
   });
   const data = await res.json();

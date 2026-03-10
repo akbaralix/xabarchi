@@ -1,5 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectDB from "./db.js";
 import startBot from "./tgbotlogin/bot.js";
 import cors from "cors";
@@ -14,6 +16,8 @@ import chatRouter from "./routes/chat.js";
 import Conversation from "./models/Conversation.js";
 import Message from "./models/Message.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 dotenv.config();
 
 const app = express();

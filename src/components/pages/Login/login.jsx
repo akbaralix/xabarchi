@@ -6,6 +6,7 @@ import { FaTelegram } from "react-icons/fa";
 import { FiX } from "react-icons/fi";
 import { signInWithPopup } from "firebase/auth";
 import {
+  completeGoogleSignup,
   completeTelegramSignup,
   loginWithGoogleToken,
   loginWithPassword,
@@ -26,6 +27,7 @@ function Login() {
   const [setupPassword, setSetupPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [setupMessage, setSetupMessage] = useState("");
+  const [setupSource, setSetupSource] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -42,6 +44,15 @@ function Login() {
     setSetupMessage("");
   };
 
+  const resetSetup = () => {
+    setSetupToken("");
+    setSetupUsername("");
+    setSetupPassword("");
+    setConfirmPassword("");
+    setSetupMessage("");
+    setSetupSource("");
+  };
+
   const persistAndGoProfile = (token) => {
     localStorage.setItem("UserToken", token);
     navigate("/profil", { replace: true });
@@ -56,10 +67,7 @@ function Login() {
 
     setLoading(true);
     try {
-      const data = await loginWithPassword(
-        username.toLowerCase(),
-        password.toLowerCase(),
-      );
+      const data = await loginWithPassword(username.toLowerCase(), password);
       if (!data?.token) {
         setError("Token olinmadi.");
         return;
@@ -79,6 +87,12 @@ function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
       const data = await loginWithGoogleToken(idToken);
+      if (data?.needsSetup && data?.setupToken) {
+        setSetupToken(data.setupToken);
+        setSetupSource("google");
+        setSetupMessage("Google hisob uchun username va parol tanlang.");
+        return;
+      }
       if (!data?.token) {
         setError("Token olinmadi.");
         return;
@@ -101,6 +115,7 @@ function Login() {
 
       if (data?.needsSetup && data?.setupToken) {
         setSetupToken(data.setupToken);
+        setSetupSource("telegram");
         setSetupMessage("Yangi hisob uchun username va parol tanlang.");
         return;
       }
@@ -127,11 +142,18 @@ function Login() {
 
     setLoading(true);
     try {
-      const data = await completeTelegramSignup(
-        setupToken,
-        setupUsername.toLowerCase(),
-        setupPassword.toLowerCase(),
-      );
+      const data =
+        setupSource === "google"
+          ? await completeGoogleSignup(
+              setupToken,
+              setupUsername.toLowerCase(),
+              setupPassword,
+            )
+          : await completeTelegramSignup(
+              setupToken,
+              setupUsername.toLowerCase(),
+              setupPassword,
+            );
       if (!data?.token) {
         setError("Token olinmadi.");
         return;
@@ -144,7 +166,9 @@ function Login() {
     }
   };
 
-  const showTelegramSetup = Boolean(setupToken);
+  const showTelegramSetup = Boolean(setupToken) && setupSource === "telegram";
+  const showGoogleSetup =
+    Boolean(setupToken) && setupSource === "google" && !showTelegramFlow;
 
   return (
     <>
@@ -158,84 +182,137 @@ function Login() {
           {!showTelegramFlow ? (
             <>
               <h2>Xabarchi'ga kirish</h2>
-              <div className="login-mode-tabs">
-                <button
-                  className={authMode === "password" ? "active" : ""}
-                  onClick={() => {
-                    setAuthMode("password");
-                    resetState();
-                  }}
-                >
-                  Username va Parol
-                </button>
-                <button
-                  className={authMode === "telegram" ? "active" : ""}
-                  onClick={() => {
-                    setAuthMode("telegram");
-                    resetState();
-                  }}
-                >
-                  Boshqa
-                </button>
-              </div>
-
-              {authMode === "password" ? (
+              {showGoogleSetup ? (
                 <div className="password-login">
+                  <p className="setup-message">{setupMessage}</p>
                   <div className="input-group">
                     <input
                       type="text"
-                      id="username-login"
+                      id="setup-username-google"
                       placeholder=" "
-                      value={username}
+                      value={setupUsername}
                       onChange={(e) =>
-                        setUsername(e.target.value.toLowerCase())
+                        setSetupUsername(
+                          e.target.value
+                            .replace(/[^a-zA-Z0-9_]/g, "")
+                            .toLowerCase(),
+                        )
                       }
                     />
-                    <label htmlFor="username-login">Username</label>
+                    <label htmlFor="setup-username-google">
+                      Username tanlang
+                    </label>
                   </div>
                   <div className="input-group">
                     <input
                       type="password"
-                      id="password-login"
+                      id="setup-password-google"
                       placeholder=" "
-                      value={password}
-                      onChange={(e) =>
-                        setPassword(e.target.value.toLowerCase())
-                      }
+                      value={setupPassword}
+                      onChange={(e) => setSetupPassword(e.target.value)}
                     />
-                    <label htmlFor="password-login">Parol</label>
+                    <label htmlFor="setup-password-google">Parol tanlang</label>
                   </div>
-                  <button
-                    className="primary-auth-btn"
-                    onClick={handlePasswordLogin}
-                  >
+                  <div className="input-group">
+                    <input
+                      type="password"
+                      id="setup-password-confirm-google"
+                      placeholder=" "
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <label htmlFor="setup-password-confirm-google">
+                      Parolni tasdiqlang
+                    </label>
+                  </div>
+                  <button className="google-setup-btn" onClick={handleCompleteSignup}>
                     {loading ? (
                       <span className="loadingLogin"></span>
                     ) : (
-                      "Kirish"
+                      <span>Hisobni yaratish</span>
                     )}
                   </button>
                 </div>
               ) : (
-                <div className="social-login">
-                  <button
-                    className="google-login-btn"
-                    onClick={handleGoogleLogin}
-                  >
-                    <FcGoogle />
-                    <span>Google orqali kirish</span>
-                  </button>
-                  <button
-                    className="telegram-login-btn"
-                    onClick={() => {
-                      setShowTelegramFlow(true);
-                      resetState();
-                    }}
-                  >
-                    <FaTelegram />
-                    <span>Telegram orqali kirish</span>
-                  </button>
-                </div>
+                <>
+                  <div className="login-mode-tabs">
+                    <button
+                      className={authMode === "password" ? "active" : ""}
+                      onClick={() => {
+                        setAuthMode("password");
+                        resetState();
+                      }}
+                    >
+                      Username va Parol
+                    </button>
+                    <button
+                      className={authMode === "telegram" ? "active" : ""}
+                      onClick={() => {
+                        setAuthMode("telegram");
+                        resetState();
+                      }}
+                    >
+                      Boshqa
+                    </button>
+                  </div>
+
+                  {authMode === "password" ? (
+                    <div className="password-login">
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          id="username-login"
+                          placeholder=" "
+                          value={username}
+                          onChange={(e) =>
+                            setUsername(e.target.value.toLowerCase())
+                          }
+                        />
+                        <label htmlFor="username-login">Username</label>
+                      </div>
+                      <div className="input-group">
+                        <input
+                          type="password"
+                          id="password-login"
+                          placeholder=" "
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <label htmlFor="password-login">Parol</label>
+                      </div>
+                      <button
+                        className="primary-auth-btn"
+                        onClick={handlePasswordLogin}
+                      >
+                        {loading ? (
+                          <span className="loadingLogin"></span>
+                        ) : (
+                          "Kirish"
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="social-login">
+                      <button
+                        className="google-login-btn"
+                        onClick={handleGoogleLogin}
+                      >
+                        <FcGoogle />
+                        <span>Google orqali kirish</span>
+                      </button>
+                      <button
+                        className="telegram-login-btn"
+                        onClick={() => {
+                          setShowTelegramFlow(true);
+                          resetState();
+                        }}
+                      >
+                        <FaTelegram />
+                        <span>Telegram orqali kirish</span>
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               {error ? <p className="login-error">{error}</p> : null}
@@ -246,7 +323,7 @@ function Login() {
                 className="auth-close"
                 onClick={() => {
                   setShowTelegramFlow(false);
-                  setSetupToken("");
+                  resetSetup();
                   setLoading(false);
                   resetState();
                 }}
@@ -315,9 +392,7 @@ function Login() {
                       id="setup-password"
                       placeholder=" "
                       value={setupPassword}
-                      onChange={(e) =>
-                        setSetupPassword(e.target.value.toLowerCase())
-                      }
+                      onChange={(e) => setSetupPassword(e.target.value)}
                     />
                     <label htmlFor="setup-password">Parol tanlang</label>
                   </div>
@@ -327,9 +402,7 @@ function Login() {
                       id="setup-password-confirm"
                       placeholder=" "
                       value={confirmPassword}
-                      onChange={(e) =>
-                        setConfirmPassword(e.target.value.toLowerCase())
-                      }
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                     <label htmlFor="setup-password-confirm">
                       Parolni tasdiqlang

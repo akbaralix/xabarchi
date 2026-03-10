@@ -4,6 +4,9 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import admin from "firebase-admin";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const router = express.Router();
 
@@ -24,10 +27,7 @@ const validateUsername = (value) => USERNAME_REGEX.test(value);
 
 const validatePassword = (value) =>
   typeof value === "string" && value.length >= MIN_PASSWORD_LENGTH;
-const normalizePassword = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase();
+const normalizePassword = (value) => String(value || "").trim();
 
 const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -44,17 +44,32 @@ const verifyPassword = (password, salt, expectedHash) => {
   );
 };
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceAccountPath = path.resolve(__dirname, "..", "serviceAccountKey.json");
+
 const ensureFirebaseAuth = () => {
   if (admin.apps.length) {
-    return admin.auth();
+    return { auth: admin.auth(), missing: [] };
   }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const missing = [];
 
-  if (!projectId || !clientEmail || !privateKey) {
-    return null;
+  if (!projectId) missing.push("FIREBASE_PROJECT_ID");
+  if (!clientEmail) missing.push("FIREBASE_CLIENT_EMAIL");
+  if (!privateKey) missing.push("FIREBASE_PRIVATE_KEY");
+
+  if (missing.length) {
+    if (fs.existsSync(serviceAccountPath)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      return { auth: admin.auth(), missing: [] };
+    }
+    return { auth: null, missing };
   }
 
   admin.initializeApp({
@@ -65,7 +80,7 @@ const ensureFirebaseAuth = () => {
     }),
   });
 
-  return admin.auth();
+  return { auth: admin.auth(), missing: [] };
 };
 
 const generateRandomPassword = (length = 10) =>
@@ -112,6 +127,19 @@ const buildToken = (chatId) =>
 const buildSetupToken = (chatId, firstName) =>
   jwt.sign(
     { chatId, firstName, purpose: "telegram-signup-setup" },
+    process.env.JWT_SECRET,
+    { expiresIn: "10m" },
+  );
+
+const buildGoogleSetupToken = ({ uid, email, name, picture }) =>
+  jwt.sign(
+    {
+      uid,
+      email: email || null,
+      name: name || null,
+      picture: picture || null,
+      purpose: "google-signup-setup",
+    },
     process.env.JWT_SECRET,
     { expiresIn: "10m" },
   );
@@ -188,6 +216,59 @@ router.post("/api/auth/login", async (req, res) => {
   return loginWithCode(code, res);
 });
 
+router.post("/api/auth/login-password", async (req, res) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
+  }
+
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ message: "Username va password talab qilinadi!" });
+  }
+
+  const normalizedUsername = normalizeUsername(username);
+  const normalizedPassword = normalizePassword(password);
+
+  try {
+    let user = await User.findOne({ username: normalizedUsername });
+    if (!user) {
+      user = await User.findOne({ email: normalizeEmail(normalizedUsername) });
+    }
+
+    if (!user || !user.passwordHash || !user.passwordSalt) {
+      return res.status(401).json({ message: "Login yoki parol noto'g'ri." });
+    }
+
+    const isValid =
+      verifyPassword(normalizedPassword, user.passwordSalt, user.passwordHash) ||
+      verifyPassword(
+        normalizedPassword.toLowerCase(),
+        user.passwordSalt,
+        user.passwordHash,
+      );
+
+    if (!isValid) {
+      return res.status(401).json({ message: "Login yoki parol noto'g'ri." });
+    }
+
+    const token = await saveLoginToken(user);
+    return res.json({
+      message: "Login muvaffaqiyatli!",
+      token,
+      user: {
+        firstName: user.firstName,
+        chatId: user.chatId,
+        username: user.username || null,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
 router.post("/api/auth/complete-telegram-signup", async (req, res) => {
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
@@ -208,11 +289,9 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
     });
   }
   if (!validatePassword(normalizedPassword)) {
-    return res
-      .status(400)
-      .json({
-        message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.`,
-      });
+    return res.status(400).json({
+      message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.`,
+    });
   }
 
   try {
@@ -281,35 +360,143 @@ router.post("/api/auth/complete-telegram-signup", async (req, res) => {
   }
 });
 
+router.post("/api/auth/complete-google-signup", async (req, res) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
+  }
+
+  const { setupToken, username, password } = req.body || {};
+  if (!setupToken || !username || !password) {
+    return res
+      .status(400)
+      .json({ message: "setupToken, username va password talab qilinadi!" });
+  }
+
+  const normalizedUsername = normalizeUsername(username);
+  const normalizedPassword = normalizePassword(password);
+  if (!validateUsername(normalizedUsername)) {
+    return res.status(400).json({
+      message: "Username 4-24 belgidan iborat bo'lsin (faqat harf, raqam, _).",
+    });
+  }
+  if (!validatePassword(normalizedPassword)) {
+    return res.status(400).json({
+      message: `Parol kamida ${MIN_PASSWORD_LENGTH} belgili bo'lsin.`,
+    });
+  }
+
+  try {
+    const payload = jwt.verify(setupToken, process.env.JWT_SECRET);
+    if (payload.purpose !== "google-signup-setup" || !payload.uid) {
+      return res.status(400).json({ message: "setupToken yaroqsiz!" });
+    }
+
+    const existingByUsername = await User.findOne({
+      username: normalizedUsername,
+    })
+      .select("_id")
+      .lean();
+    if (existingByUsername) {
+      return res.status(409).json({ message: "Bu username band." });
+    }
+
+    let existing = await User.findOne({ googleId: payload.uid });
+    if (!existing && payload.email) {
+      existing = await User.findOne({ email: normalizeEmail(payload.email) });
+    }
+
+    if (existing) {
+      if (!existing.googleId) existing.googleId = payload.uid;
+      if (!existing.profilePic && payload.picture) {
+        existing.profilePic = payload.picture;
+      }
+      await existing.save();
+      const token = await saveLoginToken(existing);
+      return res.json({
+        message: "Login muvaffaqiyatli!",
+        token,
+        user: {
+          firstName: existing.firstName,
+          chatId: existing.chatId,
+          username: existing.username || null,
+        },
+      });
+    }
+
+    const { hash, salt } = hashPassword(normalizedPassword);
+    const chatId = await generateUniqueChatId();
+    const created = await User.create({
+      googleId: payload.uid,
+      email: payload.email ? normalizeEmail(payload.email) : undefined,
+      firstName: payload.name || "Google User",
+      username: normalizedUsername,
+      chatId,
+      profilePic: payload.picture || "",
+      passwordHash: hash,
+      passwordSalt: salt,
+    });
+
+    const token = await saveLoginToken(created);
+    return res.status(201).json({
+      message: "Hisob yaratildi va login qilindi!",
+      token,
+      user: {
+        firstName: created.firstName,
+        chatId: created.chatId,
+        username: created.username,
+      },
+    });
+  } catch (err) {
+    if (
+      err?.name === "TokenExpiredError" ||
+      err?.name === "JsonWebTokenError"
+    ) {
+      return res
+        .status(400)
+        .json({ message: "setupToken muddati tugagan yoki noto'g'ri." });
+    }
+    if (err?.code === 11000) {
+      return res.status(409).json({ message: "Bu username band." });
+    }
+    console.log(err);
+    return res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
 router.post("/api/auth/login-google", async (req, res) => {
-  const auth = ensureFirebaseAuth();
+  const { auth, missing } = ensureFirebaseAuth();
   if (!auth) {
-    return res.status(503).json({ message: "Firebase Admin SDK sozlanmagan." });
+    const detail = missing.length
+      ? `Missing env: ${missing.join(", ")}`
+      : "Firebase Admin SDK sozlanmagan.";
+    return res.status(503).json({ message: detail });
   }
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
   }
 
-  const { token: idToken } = req.body;
-  if (!idToken) {
+  const { token, idToken } = req.body || {};
+  const firebaseToken = token || idToken;
+  if (!firebaseToken) {
     return res
       .status(400)
       .json({ message: "Google ID token yuborilishi kerak." });
   }
 
   try {
-    const decodedToken = await auth.verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(firebaseToken);
     const { uid, email, name, picture } = decodedToken;
 
-    let user = await User.findOne({ googleUid: uid });
+    let user = await User.findOne({ googleId: uid });
 
-    if (!user && email) {
-      user = await User.findOne({ email: normalizeEmail(email) });
+    const normalizedEmail = email ? normalizeEmail(email) : null;
+    if (!user && normalizedEmail) {
+      user = await User.findOne({ email: normalizedEmail });
     }
 
     if (user) {
       // Foydalanuvchi mavjud, ma'lumotlarini yangilab, tizimga kiritamiz
-      if (!user.googleUid) user.googleUid = uid;
+      if (!user.googleId) user.googleId = uid;
       if (!user.profilePic && picture) user.profilePic = picture;
       await user.save();
 
@@ -317,29 +504,23 @@ router.post("/api/auth/login-google", async (req, res) => {
       return res.json({ message: "Login muvaffaqiyatli!", token: appToken });
     }
 
-    // Yangi foydalanuvchi, hisob yaratamiz
-    const username = await generateAvailableUsername(
-      name || email.split("@")[0],
-    );
-    const chatId = await generateUniqueChatId();
-    const randomPassword = generateRandomPassword();
-    const { hash, salt } = hashPassword(randomPassword);
-
-    const newUser = await User.create({
-      googleUid: uid,
-      email: normalizeEmail(email),
-      firstName: name || "Google User",
-      username,
-      chatId,
-      profilePic: picture || "",
-      passwordHash: hash,
-      passwordSalt: salt,
+    // Yangi foydalanuvchi: username/parolni o'zi tanlasin
+    const setupToken = buildGoogleSetupToken({
+      uid,
+      email: normalizedEmail,
+      name,
+      picture,
     });
-
-    const appToken = await saveLoginToken(newUser);
-    return res
-      .status(201)
-      .json({ message: "Hisob yaratildi va login qilindi!", token: appToken });
+    return res.status(200).json({
+      message: "Username va parolni tanlang",
+      needsSetup: true,
+      setupToken,
+      googleProfile: {
+        name: name || null,
+        email: normalizedEmail || null,
+        picture: picture || null,
+      },
+    });
   } catch (error) {
     console.error("Google login xatoligi:", error);
     if (

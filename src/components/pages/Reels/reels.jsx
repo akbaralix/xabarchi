@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BsEye, BsHeart, BsArrowLeft, BsHeartFill } from "react-icons/bs";
+import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { MdOutlineArrowBack } from "react-icons/md";
 
 import { FaEllipsisV } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { getPosts } from "../../api/posts";
-import { markPostView, toggleLike } from "../../api/postActions";
+import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
-import { notifyError } from "../../../utils/feedback";
+import { notifyError, notifyInfo } from "../../../utils/feedback";
 import Seo from "../../seo/Seo";
 import "./reels.css";
 
@@ -40,6 +40,12 @@ const mapBackendPost = (item) => {
     liked: Boolean(item.viewerHasLiked ?? item.liked),
   };
 };
+const REPORT_REASONS = [
+  "Noqonuniy yoki zararli kontent",
+  "18+ yoshga mo'ljallanmagan kontent",
+  "Soxtalashtirilgan yoki yolg'on ma'lumot",
+  "Boshqa sabablar",
+];
 
 function Reels() {
   const [posts, setPosts] = useState([]);
@@ -47,6 +53,8 @@ function Reels() {
   const [carouselIndexes, setCarouselIndexes] = useState({});
   const [activeIndex, setActiveIndex] = useState(0);
   const [isReelLocked, setIsReelLocked] = useState(false);
+  const [menuPostId, setMenuPostId] = useState(null);
+  const [menuMode, setMenuMode] = useState("root");
   const viewedPostIdsRef = useRef(new Set());
   const trackRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -77,7 +85,15 @@ function Reels() {
       window.removeEventListener("post-created", refreshPosts);
     };
   }, []);
+  const closeMenu = useCallback(() => {
+    setMenuPostId(null);
+    setMenuMode("root");
+  }, []);
 
+  const handleOpenReelMenu = useCallback((postId) => {
+    setMenuPostId(postId);
+    setMenuMode("root");
+  }, []);
   const handleLike = async (id) => {
     const token = localStorage.getItem("UserToken");
     if (!token) {
@@ -162,6 +178,15 @@ function Reels() {
   }, []);
 
   useEffect(() => {
+    if (!menuPostId) return;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuPostId, closeMenu]);
+
+  useEffect(() => {
     const currentPostId = posts[activeIndex]?.id;
     if (currentPostId) handleView(currentPostId);
   }, [activeIndex, posts, handleView]);
@@ -175,6 +200,51 @@ function Reels() {
       setActiveIndex(Math.max(0, posts.length - 1));
     }
   }, [activeIndex, posts.length]);
+
+  const getCurrentImage = (item) => {
+    const total = item.images || [];
+    const current = carouselIndexes[item.id] || 0;
+    return total[current] || item.image || "";
+  };
+
+  const handleDownloadImage = async (postId) => {
+    const target = posts.find((item) => item.id === postId);
+    const imageUrl = target ? getCurrentImage(target) : "";
+    if (!imageUrl) {
+      notifyError("Rasm topilmadi");
+      return;
+    }
+
+    try {
+      const response = await fetch(imageUrl, { mode: "cors" });
+      if (!response.ok) throw new Error("download_failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "reel-image";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      notifyInfo("Rasm yuklab olindi");
+    } catch {
+      window.open(imageUrl, "_blank", "noopener,noreferrer");
+      notifyInfo("Rasm yangi oynada ochildi");
+    } finally {
+      closeMenu();
+    }
+  };
+
+  const handleReport = async (reason) => {
+    try {
+      await reportPost(menuPostId, reason);
+      notifyInfo(`Shikoyatingiz qabul qilindi: ${reason}`);
+      closeMenu();
+    } catch (error) {
+      notifyError(error.message || "Shikoyat yuborishda xatolik");
+    }
+  };
 
   const handleTouchStart = (event) => {
     touchStartRef.current = {
@@ -232,11 +302,14 @@ function Reels() {
     goToReel(activeIndex + direction);
   };
 
-  const handleWheel = useCallback((event) => {
-    if (Math.abs(event.deltaY) < 18) return;
-    event.preventDefault();
-    goToReel(activeIndex + (event.deltaY > 0 ? 1 : -1));
-  }, [activeIndex, goToReel]);
+  const handleWheel = useCallback(
+    (event) => {
+      if (Math.abs(event.deltaY) < 18) return;
+      event.preventDefault();
+      goToReel(activeIndex + (event.deltaY > 0 ? 1 : -1));
+    },
+    [activeIndex, goToReel],
+  );
 
   useEffect(() => {
     const node = trackRef.current;
@@ -273,16 +346,24 @@ function Reels() {
           {posts.map((item) => (
             <article key={item.id} className="reel-card" data-post-id={item.id}>
               <div className="reel-header">
-                <button className="reel-back-btn">
+                <button
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                  className="reel-back-btn"
+                >
                   <MdOutlineArrowBack />
                 </button>
-                <button className="reel-menyu-btn">
+                <button
+                  onClick={() => handleOpenReelMenu(item.id)}
+                  className="reel-menyu-btn"
+                >
                   <FaEllipsisV />
                 </button>
               </div>
               <img
                 className="reel-media"
-                src={item.images?.[carouselIndexes[item.id] || 0] || item.image}
+                src={getCurrentImage(item)}
                 alt={item.caption}
               />
               <div className="reel-shadow" />
@@ -353,6 +434,57 @@ function Reels() {
             </article>
           ))}
         </div>
+        {menuPostId && (
+          <>
+            <div className="reel-menu-backdrop" onClick={closeMenu}></div>
+            <div className="reel-menu-panel" role="dialog" aria-modal="true">
+              <div className="reel-menu-header">
+                <span>
+                  {menuMode === "root"
+                    ? "Reel menyu"
+                    : "Shikoyat sababi"}
+                </span>
+                <button className="reel-menu-close" onClick={closeMenu}>
+                  &times;
+                </button>
+              </div>
+              {menuMode === "root" ? (
+                <>
+                  <button
+                    className="reel-menu-item"
+                    onClick={() => handleDownloadImage(menuPostId)}
+                  >
+                    Rasmni yuklab olish
+                  </button>
+                  <button
+                    className="reel-menu-item danger"
+                    onClick={() => setMenuMode("report")}
+                  >
+                    Rasm haqida shikoyat qilish
+                  </button>
+                </>
+              ) : (
+                <>
+                  {REPORT_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      className="reel-menu-item"
+                      onClick={() => handleReport(reason)}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                  <button
+                    className="reel-menu-item ghost"
+                    onClick={() => setMenuMode("root")}
+                  >
+                    Ortga
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </section>
     </>
   );

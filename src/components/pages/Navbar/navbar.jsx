@@ -1,17 +1,37 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { FaHome, FaCamera, FaEnvelope, FaPlus, FaUser } from "react-icons/fa";
+import {
+  FaHome,
+  FaCamera,
+  FaEnvelope,
+  FaPlus,
+  FaUser,
+  FaShieldAlt,
+} from "react-icons/fa";
 import Create from "../../actions/create";
 import "./navbar.css";
 
 function Navbar() {
   const [create, setCreate] = useState(false);
   const location = useLocation();
+  const adminChatId = 907402803;
+  const parseJwt = (token) => {
+    if (!token) return null;
+    try {
+      const payload = token.split(".")[1];
+      const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+      return JSON.parse(atob(padded));
+    } catch {
+      return null;
+    }
+  };
   const isActivelink = (path) => {
     return location.pathname === path ? "active" : "";
   };
 
   const token = localStorage.getItem("UserToken");
+  const isAdmin = parseJwt(token)?.chatId === adminChatId;
   const handleOpenCrate = () => {
     if (!token) {
       window.location.href = "/login";
@@ -69,6 +89,16 @@ function Navbar() {
               </div>
             </Link>
           </li>
+          {isAdmin ? (
+            <li>
+              <Link to="/admin" className={isActivelink("/admin")}>
+                <div className="nav-item">
+                  <FaShieldAlt />
+                  <span>Admin</span>
+                </div>
+              </Link>
+            </li>
+          ) : null}
         </ul>
       </div>
       {create && <Create setCreate={setCreate} />}

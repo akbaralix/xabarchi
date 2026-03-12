@@ -5,10 +5,12 @@ import {
   FaEllipsisV,
   FaTimes,
 } from "react-icons/fa";
+import { LiaTimesSolid } from "react-icons/lia";
+
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
-import { markPostView, toggleLike } from "../../api/postActions";
+import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
 import { followUserByUsername, getUser } from "../../services/User";
@@ -77,17 +79,21 @@ const ReportModal = ({ postId, onClose }) => {
     "Boshqa sabablar",
   ];
 
-  const handleRepostPost = (index) => {
-    console.log(`Post ID: ${postId} haqida shikoyat: ${reportText[index]}`);
-    notifyInfo("Shikoyatingiz qabul qilindi. Rahmat!");
-    onClose();
+  const handleRepostPost = async (index) => {
+    try {
+      await reportPost(postId, reportText[index]);
+      notifyInfo("Shikoyatingiz qabul qilindi. Rahmat!");
+      onClose();
+    } catch (error) {
+      notifyError(error.message || "Shikoyat yuborishda xatolik");
+    }
   };
 
   return (
     <div className="report-modal-container">
       <div className="repot-post">
         <button className="repot-post_remove-btn" onClick={onClose}>
-          <FaTimes />
+          <LiaTimesSolid />
         </button>
         <div className="repot-post_header">
           <p>Post haqida shikoyat qilish</p>

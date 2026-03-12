@@ -207,6 +207,91 @@
   cursor: default;
 }
 
+.reel-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1001;
+}
+
+.reel-menu-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: min(420px, 92vw);
+  background: #171717;
+  border-radius: 18px;
+  padding: 14px 12px 10px;
+  z-index: 1002;
+  border: 1px solid #262626;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  animation: reelMenuOpen 0.2s ease;
+}
+
+@keyframes reelMenuOpen {
+  from {
+    transform: translate(-50%, 12px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.reel-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 8px;
+  color: #f2f2f2;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.reel-menu-close {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.reel-menu-item {
+  width: 100%;
+  border: none;
+  background: #1f1f1f;
+  color: #f4f4f4;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 6px 0;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.reel-menu-item:hover {
+  background: #262626;
+}
+
+.reel-menu-item:active {
+  transform: scale(0.98);
+}
+
+.reel-menu-item.danger {
+  background: #2a1b1b;
+  color: #ff8f8f;
+}
+
+.reel-menu-item.ghost {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #cfcfcf;
+}
+
 @media (min-width: 751px) {
   .reels-page {
     padding: 0 18px;

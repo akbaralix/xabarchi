@@ -13,8 +13,11 @@ import router from "./routes/autoh.js";
 import userRouter from "./routes/user.js";
 import postRouter from "./routes/post.js";
 import chatRouter from "./routes/chat.js";
+import reportRouter from "./routes/report.js";
+import adminRouter from "./routes/admin.js";
 import Conversation from "./models/Conversation.js";
 import Message from "./models/Message.js";
+import User from "./models/User.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, ".env") });
@@ -118,8 +121,20 @@ io.use((socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded;
-    return next();
+    User.findOneAndUpdate(
+      { chatId: decoded.chatId },
+      { $set: { lastActiveAt: new Date() } },
+      { new: false },
+    )
+      .select("isBlocked")
+      .then((user) => {
+        if (!user || user.isBlocked) {
+          return next(new Error("Unauthorized"));
+        }
+        socket.user = decoded;
+        return next();
+      })
+      .catch(() => next(new Error("Unauthorized")));
   } catch {
     return next(new Error("Unauthorized"));
   }
@@ -205,6 +220,8 @@ app.use(router);
 app.use(userRouter);
 app.use(postRouter);
 app.use(chatRouter);
+app.use(reportRouter);
+app.use(adminRouter);
 
 app.use(express.static(path.join(__dirname, "..", "dist")));
 app.use((req, res) => {

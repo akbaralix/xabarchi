@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BsCamera, BsEye, BsHeart } from "react-icons/bs";
-import { FaPen, FaTimes } from "react-icons/fa";
+import { FaPen } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
+import { LiaTimesSolid } from "react-icons/lia";
+
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView } from "../../api/postActions";
 import {
@@ -353,7 +355,9 @@ function Profil() {
             ? {
                 ...prev,
                 viewerIsFollowing: false,
-                followersCount: Number(result.followersCount || prev.followersCount || 0),
+                followersCount: Number(
+                  result.followersCount || prev.followersCount || 0,
+                ),
               }
             : prev,
         );
@@ -364,7 +368,9 @@ function Profil() {
             ? {
                 ...prev,
                 viewerIsFollowing: true,
-                followersCount: Number(result.followersCount || prev.followersCount || 0),
+                followersCount: Number(
+                  result.followersCount || prev.followersCount || 0,
+                ),
               }
             : prev,
         );
@@ -428,7 +434,7 @@ function Profil() {
                       isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
                     }
                   >
-                    {isEditOpen ? <FaTimes /> : <FaPen />}
+                    {isEditOpen ? <LiaTimesSolid /> : <FaPen />}
                   </button>
                 ) : null}
               </div>
@@ -501,7 +507,7 @@ function Profil() {
                 onClick={() => setIsEditOpen(false)}
                 aria-label="Yopish"
               >
-                <FaTimes />
+                <LiaTimesSolid />
               </button>
               <div className="profilePic-edit">
                 <img src={user.profilePic || DEFAULT_AVATAR} alt="Profile" />
@@ -631,7 +637,7 @@ function Profil() {
               onClick={handleCloseProfilePic}
               aria-label="Yopish"
             >
-              <FaTimes />
+              <LiaTimesSolid />
             </button>
             <img
               className="profile-image-modal-img"
@@ -649,7 +655,7 @@ function Profil() {
               onClick={handleClosePostImage}
               aria-label="Yopish"
             >
-              <FaTimes />
+              <LiaTimesSolid />
             </button>
             <div
               className="post-image-modal-content"

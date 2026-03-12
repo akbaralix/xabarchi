@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
+import { BsEye, BsHeart, BsArrowLeft, BsHeartFill } from "react-icons/bs";
+import { MdOutlineArrowBack } from "react-icons/md";
+
+import { FaEllipsisV } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { getPosts } from "../../api/posts";
 import { markPostView, toggleLike } from "../../api/postActions";
@@ -45,6 +48,7 @@ function Reels() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isReelLocked, setIsReelLocked] = useState(false);
   const viewedPostIdsRef = useRef(new Set());
+  const trackRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
   const touchAxisRef = useRef(null);
   const touchPostIdRef = useRef("");
@@ -182,7 +186,7 @@ function Reels() {
     touchPostIdRef.current = touchedCard?.getAttribute("data-post-id") || "";
   };
 
-  const handleTouchMove = (event) => {
+  const handleTouchMove = useCallback((event) => {
     const currentX = event.touches[0]?.clientX || 0;
     const currentY = event.touches[0]?.clientY || 0;
     const deltaX = currentX - touchStartRef.current.x;
@@ -197,7 +201,7 @@ function Reels() {
     if (touchAxisRef.current === "y") {
       event.preventDefault();
     }
-  };
+  }, []);
 
   const handleTouchEnd = (event) => {
     const endX = event.changedTouches[0]?.clientX || 0;
@@ -228,11 +232,27 @@ function Reels() {
     goToReel(activeIndex + direction);
   };
 
-  const handleWheel = (event) => {
+  const handleWheel = useCallback((event) => {
     if (Math.abs(event.deltaY) < 18) return;
     event.preventDefault();
     goToReel(activeIndex + (event.deltaY > 0 ? 1 : -1));
-  };
+  }, [activeIndex, goToReel]);
+
+  useEffect(() => {
+    const node = trackRef.current;
+    if (!node) return;
+
+    const wheelListener = (event) => handleWheel(event);
+    const touchMoveListener = (event) => handleTouchMove(event);
+
+    node.addEventListener("wheel", wheelListener, { passive: false });
+    node.addEventListener("touchmove", touchMoveListener, { passive: false });
+
+    return () => {
+      node.removeEventListener("wheel", wheelListener);
+      node.removeEventListener("touchmove", touchMoveListener);
+    };
+  }, [handleWheel, handleTouchMove]);
 
   return (
     <>
@@ -243,20 +263,23 @@ function Reels() {
       <section className="reels-page">
         <div
           className="reels-track"
-          onWheel={handleWheel}
+          ref={trackRef}
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{
             transform: `translate3d(0, -${activeIndex * 100}dvh, 0)`,
           }}
         >
           {posts.map((item) => (
-            <article
-              key={item.id}
-              className="reel-card"
-              data-post-id={item.id}
-            >
+            <article key={item.id} className="reel-card" data-post-id={item.id}>
+              <div className="reel-header">
+                <button className="reel-back-btn">
+                  <MdOutlineArrowBack />
+                </button>
+                <button className="reel-menyu-btn">
+                  <FaEllipsisV />
+                </button>
+              </div>
               <img
                 className="reel-media"
                 src={item.images?.[carouselIndexes[item.id] || 0] || item.image}
@@ -269,7 +292,9 @@ function Reels() {
                     <span
                       key={`${item.id}-dot-${dotIndex}`}
                       className={`reel-image-dot ${
-                        (carouselIndexes[item.id] || 0) === dotIndex ? "active" : ""
+                        (carouselIndexes[item.id] || 0) === dotIndex
+                          ? "active"
+                          : ""
                       }`}
                     />
                   ))}

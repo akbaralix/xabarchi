@@ -74,3 +74,43 @@ export const optionalVerifyToken = (req, _res, next) => {
     }
   });
 };
+
+export const verifyTokenAllowBlocked = (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: "JWT_SECRET sozlanmagan!" });
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const [scheme, token] = authHeader.split(" ");
+
+  if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({ message: "Token talab qilinadi!" });
+  }
+
+  return jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+    if (err) return res.status(403).json({ message: "Token yaroqsiz!" });
+
+    try {
+      const user = await User.findOneAndUpdate(
+        { chatId: decoded.chatId },
+        { $set: { lastActiveAt: new Date() } },
+        { new: false },
+      ).select("isBlocked blockedReason blockedAt");
+
+      if (!user) {
+        return res.status(401).json({ message: "Foydalanuvchi topilmadi!" });
+      }
+
+      req.user = {
+        ...decoded,
+        isBlocked: Boolean(user.isBlocked),
+        blockedReason: user.blockedReason || "",
+        blockedAt: user.blockedAt || null,
+      };
+      return next();
+    } catch (error) {
+      console.log("Auth status xatoligi:", error);
+      return res.status(500).json({ message: "Auth xatoligi." });
+    }
+  });
+};

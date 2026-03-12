@@ -1,7 +1,11 @@
 import express from "express";
 import User from "../models/User.js";
 import Post from "../models/Post.js";
-import { optionalVerifyToken, verifyToken } from "../middleware/auth.js";
+import {
+  optionalVerifyToken,
+  verifyToken,
+  verifyTokenAllowBlocked,
+} from "../middleware/auth.js";
 
 const userRouter = express.Router();
 
@@ -51,6 +55,15 @@ userRouter.get("/me", verifyToken, async (req, res) => {
     console.log(err);
     res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
   }
+});
+
+userRouter.get("/me/status", verifyTokenAllowBlocked, async (req, res) => {
+  return res.json({
+    chatId: req.user.chatId,
+    isBlocked: Boolean(req.user.isBlocked),
+    blockedReason: req.user.blockedReason || "",
+    blockedAt: req.user.blockedAt || null,
+  });
 });
 
 userRouter.patch("/me/profile", verifyToken, async (req, res) => {

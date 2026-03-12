@@ -86,7 +86,7 @@
 }
 
 .conversation-item {
-  background: #060606;
+  background: transparent;
   border: none;
   border-radius: 8px;
   color: #fff;
@@ -94,12 +94,14 @@
   padding: 15px 10px;
   display: grid;
   grid-template-columns: 44px 1fr auto;
-  gap: 10px;
+  gap: 17px;
+  align-items: center;
   cursor: pointer;
   transition: 0.3s ease;
+  position: relative;
 }
 .conversation-item:hover {
-  background-color: #121215;
+  background: #0b0b0b;
 }
 
 .conversation-item.active {
@@ -134,10 +136,13 @@
 }
 
 .conversation-right {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+  right: 10px;
+  bottom: 8px;
   font-size: 11px;
   color: #90909a;
 }

@@ -397,7 +397,20 @@ function Profil() {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <>
+        <Seo title="Profil" description="Profil yuklanmoqda." noindex />
+        <div className="profil-wrapper">
+          <div className="profil-container">
+            <div className="user-posts">
+              <p className="loading-text">Yuklanmoqda...</p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const profileName = user.username || user.firstName || "Foydalanuvchi";
   const profileDescription = user.bio

@@ -2,8 +2,14 @@
   max-width: 1000px;
   margin: 0 auto;
   padding: 24px 20px 100px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
-
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .profil-container {
   width: 100%;
 }
@@ -20,7 +26,7 @@
   height: 170px;
   border-radius: 50%;
   padding: 4px;
-  background: linear-gradient(140deg, #ffe17d, #ff7a00, #ff0069, #7a4dff);
+  background: linear-gradient(140deg, #8954fd, #8d28e0, #8a29f3, #6233ef);
   cursor: pointer;
 }
 
@@ -271,6 +277,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   margin-top: 18px;
+  flex: 1;
+  align-content: start;
 }
 
 .profile-post_item {
@@ -394,7 +402,15 @@
 .loading-text,
 .no-posts {
   padding: 22px;
-  color: #a7b0bd;
+  font-family: "poppins";
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1 / -1;
+  min-height: 240px;
+  width: 100%;
+  margin: 0;
 }
 
 .profile-image-modal {

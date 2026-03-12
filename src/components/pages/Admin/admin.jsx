@@ -32,6 +32,9 @@ function Admin() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [blockModal, setBlockModal] = useState(null);
+  const [blockReason, setBlockReason] = useState("");
 
   const token = useMemo(() => localStorage.getItem("UserToken"), []);
   const isAdmin = useMemo(() => {
@@ -92,31 +95,30 @@ function Admin() {
     }
   };
 
-  const handleBlockToggle = async (user) => {
-    const blocked = !user.isBlocked;
-    const reason = blocked
-      ? window.prompt("Bloklash sababi (ixtiyoriy):") || ""
-      : "";
-    try {
-      await blockUser(user.chatId, blocked, reason);
-      notifyInfo(blocked ? "User bloklandi." : "User blokdan chiqarildi.");
-      await loadUsers(search);
-    } catch (error) {
-      notifyError(error.message || "Bloklashda xatolik");
-    }
+  const handleBlockToggle = (user) => {
+    setBlockReason("");
+    setBlockModal({
+      user,
+      blocked: !user.isBlocked,
+    });
   };
 
   const handleDeletePost = async (postId) => {
     if (!postId) return;
-    if (!window.confirm("Postni o'chirishni tasdiqlaysizmi?")) return;
-    try {
-      await deletePostByAdmin(postId);
-      notifyInfo("Post o'chirildi.");
-      await loadReports(reportStatus);
-      await loadStats();
-    } catch (error) {
-      notifyError(error.message || "Postni o'chirishda xatolik");
-    }
+    setConfirmModal({
+      title: "Postni o'chirish",
+      message: "Postni o'chirishni tasdiqlaysizmi?",
+      onConfirm: async () => {
+        try {
+          await deletePostByAdmin(postId);
+          notifyInfo("Post o'chirildi.");
+          await loadReports(reportStatus);
+          await loadStats();
+        } catch (error) {
+          notifyError(error.message || "Postni o'chirishda xatolik");
+        }
+      },
+    });
   };
 
   const handleResolveReport = async (reportId) => {
@@ -127,6 +129,23 @@ function Admin() {
       await loadStats();
     } catch (error) {
       notifyError(error.message || "Shikoyatni yopishda xatolik");
+    }
+  };
+
+  const handleConfirmClose = () => setConfirmModal(null);
+
+  const handleBlockConfirm = async () => {
+    if (!blockModal?.user) return;
+    const { user, blocked } = blockModal;
+    try {
+      await blockUser(user.chatId, blocked, blocked ? blockReason : "");
+      notifyInfo(blocked ? "User bloklandi." : "User blokdan chiqarildi.");
+      await loadUsers(search);
+    } catch (error) {
+      notifyError(error.message || "Bloklashda xatolik");
+    } finally {
+      setBlockModal(null);
+      setBlockReason("");
     }
   };
 
@@ -324,6 +343,63 @@ function Admin() {
           </div>
         </div>
       </div>
+
+      {confirmModal ? (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card">
+            <h4>{confirmModal.title}</h4>
+            <p>{confirmModal.message}</p>
+            <div className="admin-modal-actions">
+              <button className="outline" onClick={handleConfirmClose}>
+                Bekor
+              </button>
+              <button
+                className="danger"
+                onClick={async () => {
+                  await confirmModal.onConfirm?.();
+                  handleConfirmClose();
+                }}
+              >
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {blockModal ? (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal-card">
+            <h4>
+              {blockModal.blocked ? "Userni bloklash" : "Blokdan chiqarish"}
+            </h4>
+            <p>
+              {blockModal.user?.username || blockModal.user?.firstName} uchun
+              amalni tasdiqlaysizmi?
+            </p>
+            {blockModal.blocked ? (
+              <textarea
+                className="admin-modal-input"
+                rows={3}
+                placeholder="Bloklash sababi (ixtiyoriy)"
+                value={blockReason}
+                onChange={(event) => setBlockReason(event.target.value)}
+              />
+            ) : null}
+            <div className="admin-modal-actions">
+              <button
+                className="outline"
+                onClick={() => setBlockModal(null)}
+              >
+                Bekor
+              </button>
+              <button className="danger" onClick={handleBlockConfirm}>
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

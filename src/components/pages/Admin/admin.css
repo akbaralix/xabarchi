@@ -1,6 +1,5 @@
 .admin-page {
   min-height: 100vh;
-  background: radial-gradient(circle at top, #151515, #0a0a0a 55%);
   color: #f1f1f1;
   padding: 24px 18px 80px;
   display: flex;
@@ -41,7 +40,7 @@
 }
 
 .admin-card {
-  background: rgba(24, 24, 24, 0.95);
+  background: rgba(14, 14, 14, 0.95);
   border: 1px solid #272727;
   border-radius: 18px;
   padding: 16px;
@@ -269,6 +268,64 @@
 
 .danger {
   color: #ff9a9a;
+}
+
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.admin-modal-card {
+  width: min(420px, 92vw);
+  background: #151515;
+  border: 1px solid #2d2d2d;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.admin-modal-card h4 {
+  margin: 0 0 8px;
+}
+
+.admin-modal-card p {
+  margin: 0 0 12px;
+  color: #c7c7c7;
+  font-size: 14px;
+}
+
+.admin-modal-input {
+  width: 100%;
+  background: #0f0f0f;
+  border: 1px solid #2b2b2b;
+  border-radius: 12px;
+  color: #e2e2e2;
+  padding: 10px;
+  margin-bottom: 12px;
+  resize: vertical;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-modal-actions .outline {
+  background: transparent;
+  border: 1px solid #2f2f2f;
+  color: #e2e2e2;
+}
+
+.admin-modal-actions .danger {
+  background: #3a1a1a;
+  color: #ffb0b0;
 }
 
 @media (max-width: 720px) {

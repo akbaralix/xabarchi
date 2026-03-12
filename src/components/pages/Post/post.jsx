@@ -6,11 +6,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getPostById } from "../../api/posts";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
-import { copyPostLink } from "../../services/postLink";
-import { notifyError, notifyInfo } from "../../../utils/feedback";
+import { notifyError } from "../../../utils/feedback";
 import Seo from "../../seo/Seo";
 import "../Home/home.css";
-import "./post.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
@@ -127,15 +125,6 @@ function Post() {
     if (post?.id) handleView();
   }, [post?.id, handleView]);
 
-  const handleCopyLink = async () => {
-    try {
-      await copyPostLink(post?.id);
-      notifyInfo("Post linki nusxalandi");
-    } catch {
-      notifyError("Linkni nusxalashda xatolik");
-    }
-  };
-
   const handleTouchStart = (event) => {
     touchStartXRef.current = event.touches[0]?.clientX || 0;
     touchStartYRef.current = event.touches[0]?.clientY || 0;
@@ -164,8 +153,8 @@ function Post() {
   return (
     <>
       <Seo title="Post" description="Xabarchi post sahifasi." />
-      <section className="post-page">
-        <div className="post-container single-post">
+      <section>
+        <div className="post-container home-feed">
           {loading ? (
             <p className="loading-text">Yuklanmoqda...</p>
           ) : post ? (
@@ -185,15 +174,6 @@ function Post() {
                       {post.userName}
                     </h3>
                   </div>
-                </div>
-                <div className="post-follow-menyu">
-                  <button
-                    className="post-link-btn"
-                    onClick={handleCopyLink}
-                    title="Post linkini nusxalash"
-                  >
-                    Link
-                  </button>
                 </div>
               </div>
 

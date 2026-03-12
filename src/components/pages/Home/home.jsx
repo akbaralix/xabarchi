@@ -125,7 +125,9 @@ const ReportModal = ({ postId, onClose }) => {
           <LiaTimesSolid />
         </button>
         <div className="repot-post_header">
-          <p>{mode === "root" ? "Post menyusi" : "Post haqida shikoyat qilish"}</p>
+          <p>
+            {mode === "root" ? "Post menyusi" : "Post haqida shikoyat qilish"}
+          </p>
         </div>
         {mode === "root" ? (
           <>
@@ -344,7 +346,6 @@ function Home({ enableSeo = true }) {
     }
   };
 
-
   const handleView = useCallback(async (id) => {
     if (!id || viewedPostIdsRef.current.has(id)) return;
     const token = localStorage.getItem("UserToken");
@@ -441,13 +442,6 @@ function Home({ enableSeo = true }) {
               onClick={() => setActivePostId(item.id)}
             >
               <FaEllipsisV />
-            </button>
-            <button
-              className="post-link-btn"
-              onClick={() => handleCopyLink(item.id)}
-              title="Post linkini nusxalash"
-            >
-              Link
             </button>
           </div>
         </div>

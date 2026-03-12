@@ -7,6 +7,7 @@ import { LiaTimesSolid } from "react-icons/lia";
 
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView } from "../../api/postActions";
+import { copyPostLink } from "../../services/postLink";
 import {
   confirmAction,
   notifyError,
@@ -214,6 +215,15 @@ function Profil() {
       notifyError(err.message || "Postni o'chirishda xatolik.");
     } finally {
       setDeletingId("");
+    }
+  };
+
+  const handleCopyLink = async (postId) => {
+    try {
+      await copyPostLink(postId);
+      notifySuccess("Post linki nusxalandi");
+    } catch {
+      notifyError("Linkni nusxalashda xatolik");
     }
   };
 
@@ -622,6 +632,12 @@ function Profil() {
                         {formatNumber(item.views || 0)}
                       </span>
                     </div>
+                    <button
+                      className="post-link-btn"
+                      onClick={() => handleCopyLink(item._id)}
+                    >
+                      Link
+                    </button>
                     {isOwnProfile ? (
                       <button
                         className="post-delete-btn"

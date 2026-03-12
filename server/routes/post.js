@@ -248,10 +248,44 @@ const addView = async (req, res) => {
   }
 };
 
+const getPostById = async (req, res) => {
+  if (!requireDbConnection(res)) return;
+  const { postId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: "postId noto'g'ri!" });
+  }
+
+  try {
+    const viewerChatId = req.user?.chatId || null;
+    const dbPost = await Post.findById(postId).lean();
+    if (!dbPost) return res.status(404).json({ message: "Post topilmadi!" });
+    const [prepared] = await attachProfilePics([dbPost]);
+    const likedBy = Array.isArray(prepared.likedByChatIds)
+      ? prepared.likedByChatIds
+      : [];
+    const viewedBy = Array.isArray(prepared.viewedByChatIds)
+      ? prepared.viewedByChatIds
+      : [];
+
+    return res.json({
+      ...prepared,
+      likes: likedBy.length,
+      views: viewedBy.length,
+      viewerHasLiked: viewerChatId ? likedBy.includes(viewerChatId) : false,
+      likedByChatIds: undefined,
+      viewedByChatIds: undefined,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Postni olishda xatolik" });
+  }
+};
+
 postRouter.get("/posts", optionalVerifyToken, getPosts);
+postRouter.get("/posts/me", verifyToken, getMyPosts);
+postRouter.get("/posts/:postId", optionalVerifyToken, getPostById);
 postRouter.post("/posts", verifyToken, createPost);
 postRouter.post("/add", verifyToken, createPost);
-postRouter.get("/posts/me", verifyToken, getMyPosts);
 postRouter.delete("/posts/:postId", verifyToken, deletePost);
 postRouter.post("/posts/:postId/like", verifyToken, toggleLike);
 postRouter.post("/posts/:postId/view", verifyToken, addView);

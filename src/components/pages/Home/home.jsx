@@ -14,6 +14,7 @@ import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
 import { followUserByUsername, getUser } from "../../services/User";
+import { copyPostLink } from "../../services/postLink";
 import Seo from "../../seo/Seo";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
@@ -72,6 +73,7 @@ const mapBackendPost = (item) => {
 };
 
 const ReportModal = ({ postId, onClose }) => {
+  const [mode, setMode] = useState("root");
   const reportText = [
     "Noqonuniy yoki zararli kontendan foydalanish",
     "18+ yoshga mo'ljallanmagan kontent",
@@ -89,6 +91,33 @@ const ReportModal = ({ postId, onClose }) => {
     }
   };
 
+  const handleCopyLink = async () => {
+    try {
+      await copyPostLink(postId);
+      notifyInfo("Post linki nusxalandi");
+      onClose();
+    } catch {
+      notifyError("Linkni nusxalashda xatolik");
+    }
+  };
+
+  const handleShare = async () => {
+    const link = `${window.location.origin}/post/${encodeURIComponent(
+      String(postId || ""),
+    )}`;
+    if (!postId) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url: link });
+        onClose();
+        return;
+      } catch {
+        // user cancelled or share failed
+      }
+    }
+    await handleCopyLink();
+  };
+
   return (
     <div className="report-modal-container">
       <div className="repot-post">
@@ -96,18 +125,45 @@ const ReportModal = ({ postId, onClose }) => {
           <LiaTimesSolid />
         </button>
         <div className="repot-post_header">
-          <p>Post haqida shikoyat qilish</p>
+          <p>{mode === "root" ? "Post menyusi" : "Post haqida shikoyat qilish"}</p>
         </div>
-        {reportText.map((item, index) => (
-          <div className="report-post_item" key={index}>
-            <button
-              onClick={() => handleRepostPost(index)}
-              className="report-btn"
-            >
-              <span>{item}</span>
-            </button>
-          </div>
-        ))}
+        {mode === "root" ? (
+          <>
+            <div className="report-post_item">
+              <button onClick={handleShare} className="report-btn">
+                <span>Ulashish</span>
+              </button>
+            </div>
+            <div className="report-post_item">
+              <button onClick={handleCopyLink} className="report-btn">
+                <span>Postni nusxalash</span>
+              </button>
+            </div>
+            <div className="report-post_item">
+              <button onClick={() => setMode("report")} className="report-btn">
+                <span>Shikoyat yuborish</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {reportText.map((item, index) => (
+              <div className="report-post_item" key={index}>
+                <button
+                  onClick={() => handleRepostPost(index)}
+                  className="report-btn"
+                >
+                  <span>{item}</span>
+                </button>
+              </div>
+            ))}
+            <div className="report-post_item">
+              <button onClick={() => setMode("root")} className="report-btn">
+                <span>Ortga</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -288,6 +344,7 @@ function Home({ enableSeo = true }) {
     }
   };
 
+
   const handleView = useCallback(async (id) => {
     if (!id || viewedPostIdsRef.current.has(id)) return;
     const token = localStorage.getItem("UserToken");
@@ -384,6 +441,13 @@ function Home({ enableSeo = true }) {
               onClick={() => setActivePostId(item.id)}
             >
               <FaEllipsisV />
+            </button>
+            <button
+              className="post-link-btn"
+              onClick={() => handleCopyLink(item.id)}
+              title="Post linkini nusxalash"
+            >
+              Link
             </button>
           </div>
         </div>

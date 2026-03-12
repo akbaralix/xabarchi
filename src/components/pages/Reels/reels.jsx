@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { getPosts } from "../../api/posts";
 import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
+import { copyPostLink } from "../../services/postLink";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
 import Seo from "../../seo/Seo";
 import "./reels.css";
@@ -246,6 +247,16 @@ function Reels() {
     }
   };
 
+  const handleCopyLink = async (postId) => {
+    try {
+      await copyPostLink(postId);
+      notifyInfo("Post linki nusxalandi");
+      closeMenu();
+    } catch {
+      notifyError("Linkni nusxalashda xatolik");
+    }
+  };
+
   const handleTouchStart = (event) => {
     touchStartRef.current = {
       x: event.touches[0]?.clientX || 0,
@@ -450,16 +461,22 @@ function Reels() {
               </div>
               {menuMode === "root" ? (
                 <>
-                  <button
-                    className="reel-menu-item"
-                    onClick={() => handleDownloadImage(menuPostId)}
-                  >
-                    Rasmni yuklab olish
-                  </button>
-                  <button
-                    className="reel-menu-item danger"
-                    onClick={() => setMenuMode("report")}
-                  >
+                <button
+                  className="reel-menu-item"
+                  onClick={() => handleDownloadImage(menuPostId)}
+                >
+                  Rasmni yuklab olish
+                </button>
+                <button
+                  className="reel-menu-item"
+                  onClick={() => handleCopyLink(menuPostId)}
+                >
+                  Post linkini nusxalash
+                </button>
+                <button
+                  className="reel-menu-item danger"
+                  onClick={() => setMenuMode("report")}
+                >
                     Rasm haqida shikoyat qilish
                   </button>
                 </>

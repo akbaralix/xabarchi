@@ -29,3 +29,31 @@ export const getPosts = async () => {
   setCached(cacheKey, normalized, 5 * 60_000);
   return normalized;
 };
+
+export const getPostById = async (postId) => {
+  if (!postId) return null;
+  const token = localStorage.getItem("UserToken");
+  const cacheKey = `posts:single:${postId}:${token || "guest"}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE}/posts/${postId}`, { headers });
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const normalized =
+    data && typeof data === "object"
+      ? {
+          ...data,
+          imageUrls: Array.isArray(data?.imageUrls)
+            ? data.imageUrls.map((url) => normalizeImageUrl(url)).filter(Boolean)
+            : [],
+          imageUrl: normalizeImageUrl(data?.imageUrl || data?.image),
+          image: normalizeImageUrl(data?.image || data?.imageUrl),
+          profilePic: normalizeImageUrl(data?.profilePic),
+        }
+      : null;
+  if (normalized) setCached(cacheKey, normalized, 2 * 60_000);
+  return normalized;
+};

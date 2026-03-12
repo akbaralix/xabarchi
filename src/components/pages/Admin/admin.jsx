@@ -8,6 +8,7 @@ import {
   resolveReport,
 } from "../../api/admin";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
+import { buildPostLink, copyPostLink } from "../../services/postLink";
 import Seo from "../../seo/Seo";
 import "./admin.css";
 
@@ -47,21 +48,15 @@ function Admin() {
     setStats(data);
   }, []);
 
-  const loadUsers = useCallback(
-    async (query) => {
-      const data = await getAdminUsers(query);
-      setUsers(Array.isArray(data) ? data : []);
-    },
-    [],
-  );
+  const loadUsers = useCallback(async (query) => {
+    const data = await getAdminUsers(query);
+    setUsers(Array.isArray(data) ? data : []);
+  }, []);
 
-  const loadReports = useCallback(
-    async (status) => {
-      const data = await getAdminReports(status);
-      setReports(Array.isArray(data) ? data : []);
-    },
-    [],
-  );
+  const loadReports = useCallback(async (status) => {
+    const data = await getAdminReports(status);
+    setReports(Array.isArray(data) ? data : []);
+  }, []);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
@@ -121,6 +116,15 @@ function Admin() {
     });
   };
 
+  const handleCopyPostLink = async (postId) => {
+    try {
+      await copyPostLink(postId);
+      notifyInfo("Post linki nusxalandi");
+    } catch {
+      notifyError("Linkni nusxalashda xatolik");
+    }
+  };
+
   const handleResolveReport = async (reportId) => {
     try {
       await resolveReport(reportId);
@@ -165,10 +169,7 @@ function Admin() {
     return (
       <section className="admin-page">
         <Seo title="Admin" description="Admin panel" noindex />
-        <div className="admin-guard">
-          <h2>Admin panel</h2>
-          <p>Ruxsat yo'q.</p>
-        </div>
+        <div className="admin-guard">{(window.location.href = "/")}</div>
       </section>
     );
   }
@@ -197,9 +198,7 @@ function Admin() {
             <div>
               <span>Faol userlar</span>
               <strong>{stats?.activeUsers ?? "-"}</strong>
-              <small>
-                Oxirgi {stats?.activeWindowDays ?? 7} kun
-              </small>
+              <small>Oxirgi {stats?.activeWindowDays ?? 7} kun</small>
             </div>
             <div>
               <span>Jami postlar</span>
@@ -219,9 +218,7 @@ function Admin() {
               {["open", "resolved", "all"].map((status) => (
                 <button
                   key={status}
-                  className={
-                    reportStatus === status ? "active" : ""
-                  }
+                  className={reportStatus === status ? "active" : ""}
                   onClick={() => setReportStatus(status)}
                 >
                   {status === "open"
@@ -248,23 +245,41 @@ function Admin() {
                     <p>
                       Post egasi:{" "}
                       <strong>
-                        {report.author?.username ||
-                          report.author?.firstName ||
-                          report.postSnapshot?.userName ||
-                          "Noma'lum"}
+                        <a href={`/${report.postSnapshot?.userName}`}>
+                          {report.author?.username ||
+                            report.author?.firstName ||
+                            report.postSnapshot?.userName ||
+                            "Noma'lum"}
+                        </a>
                       </strong>
                     </p>
                     <p>
                       Shikoyatchi:{" "}
                       <strong>
-                        {report.reporter?.username ||
-                          report.reporter?.firstName ||
-                          report.reporter?.chatId ||
-                          "Noma'lum"}
+                        <a href={`/${report.reporter?.username}`}>
+                          {report.reporter?.username ||
+                            report.reporter?.firstName ||
+                            report.reporter?.chatId ||
+                            "Noma'lum"}
+                        </a>
                       </strong>
                     </p>
                   </div>
                   <div className="admin-report-actions">
+                    <a
+                      className="outline"
+                      href={buildPostLink(report.postId)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Post linki
+                    </a>
+                    <button
+                      className="outline"
+                      onClick={() => handleCopyPostLink(report.postId)}
+                    >
+                      Linkni nusxalash
+                    </button>
                     <button
                       className="outline"
                       onClick={() => handleDeletePost(report.postId)}
@@ -314,7 +329,12 @@ function Admin() {
                       )}
                     </div>
                     <div>
-                      <strong>{user.username || user.firstName}</strong>
+                      <strong>
+                        {" "}
+                        <a href={`/${user.username}`}>
+                          {user.username || user.firstName}
+                        </a>
+                      </strong>
                       <p>ID: {user.chatId}</p>
                       <p>
                         Postlar: {user.postCount} · Kuzatuvchilar:{" "}
@@ -322,7 +342,8 @@ function Admin() {
                       </p>
                       {user.isBlocked ? (
                         <p className="danger">
-                          Bloklangan {user.blockedReason ? `· ${user.blockedReason}` : ""}
+                          Bloklangan{" "}
+                          {user.blockedReason ? `· ${user.blockedReason}` : ""}
                         </p>
                       ) : (
                         <p className="ok">Faol</p>
@@ -387,11 +408,8 @@ function Admin() {
               />
             ) : null}
             <div className="admin-modal-actions">
-              <button
-                className="outline"
-                onClick={() => setBlockModal(null)}
-              >
-                Bekor
+              <button className="outline" onClick={() => setBlockModal(null)}>
+                Bekor qlish
               </button>
               <button className="danger" onClick={handleBlockConfirm}>
                 Tasdiqlash

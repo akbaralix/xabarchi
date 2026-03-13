@@ -726,10 +726,17 @@ function Messages() {
         },
         clientMessageId,
       );
+      const preparedSent = prepareMessage(
+        {
+          ...sent,
+          text: sent.text || content,
+        },
+        peerPublicKey,
+      );
       setMessages((prev) =>
         prev
           .map((item) =>
-            item.clientMessageId === clientMessageId ? sent : item,
+            item.clientMessageId === clientMessageId ? preparedSent : item,
           )
           .filter((item, index, arr) => {
             const id = String(item._id);
@@ -741,10 +748,10 @@ function Messages() {
           .map((item) =>
             String(item._id) === String(selectedConversationId)
               ? {
-                  ...item,
-                  lastMessage: sent.text || content,
-                  lastMessageAt: sent.createdAt,
-                }
+                ...item,
+                lastMessage: preparedSent.text || content,
+                lastMessageAt: sent.createdAt || preparedSent.createdAt,
+              }
               : item,
           )
           .sort(

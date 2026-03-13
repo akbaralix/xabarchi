@@ -18,7 +18,7 @@ import { notifyError, notifyInfo } from "../../../utils/feedback";
 import { followUserByUsername, getUser } from "../../services/User";
 import { copyPostLink } from "../../services/postLink";
 import { getNotifications } from "../../api/notifications";
-import { addComment, getComments } from "../../api/comments";
+import { addComment, deleteComment, getComments } from "../../api/comments";
 import { io } from "socket.io-client";
 import { getSocketBase } from "../../api/chat";
 import Seo from "../../seo/Seo";
@@ -189,6 +189,7 @@ const ReportModal = ({ postId, onClose }) => {
 function Home({ enableSeo = true }) {
   const [post, setPost] = useState([]);
   const [myUsername, setMyUsername] = useState("");
+  const [myChatId, setMyChatId] = useState(null);
   const [followingUsernames, setFollowingUsernames] = useState(new Set());
   const [followLoadingMap, setFollowLoadingMap] = useState({});
   const [expandedPost, setExpandedPost] = useState(null);
@@ -256,6 +257,7 @@ function Home({ enableSeo = true }) {
       if (!me || cancelled) return;
 
       setMyUsername(normalizeUsername(me.username));
+      setMyChatId(Number.isInteger(me.chatId) ? me.chatId : null);
       const following = Array.isArray(me.followingChatIds)
         ? me.followingChatIds
         : [];
@@ -627,111 +629,113 @@ function Home({ enableSeo = true }) {
       {enableSeo ? (
         <Seo description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar." />
       ) : null}
-      <div className="home-layout">
-        <div className="post-container home-feed">
-          {followedPosts.length ? (
-            <>
-              <div className="home-section-title">Kuzatayotganlaringiz</div>
-              {followedPosts.map((item, index) =>
-                renderPostItem(item, index, false),
-              )}
-            </>
-          ) : null}
+      {notifications ? (
+        <div className="home-layout">
+          <div className="post-container home-feed">
+            {followedPosts.length ? (
+              <>
+                <div className="home-section-title">Kuzatayotganlaringiz</div>
+                {followedPosts.map((item, index) =>
+                  renderPostItem(item, index, false),
+                )}
+              </>
+            ) : null}
 
-          {suggestedPosts.length ? (
-            <>
-              <div className="home-section-title">Siz uchun tavsiya</div>
-              {suggestedPosts.map((item, index) =>
-                renderPostItem(item, index + followedPosts.length, true),
-              )}
-            </>
-          ) : null}
+            {suggestedPosts.length ? (
+              <>
+                <div className="home-section-title">Siz uchun tavsiya</div>
+                {suggestedPosts.map((item, index) =>
+                  renderPostItem(item, index + followedPosts.length, true),
+                )}
+              </>
+            ) : null}
 
-          {activePostId && (
-            <>
-              <div
-                className="modal-backdrop"
-                onClick={() => setActivePostId(null)}
-              ></div>
-              <ReportModal
-                postId={activePostId}
-                onClose={() => setActivePostId(null)}
-              />
-            </>
-          )}
-        </div>
-
-        <aside className="home-sidebar">
-          <div className="home-card">
-            <div className="home-card__title">Bildirishnomalar</div>
-            {notifications.length ? (
-              <div className="home-list">
-                {notifications.map((item) => (
-                  <div
-                    className={`home-list__item ${item.isRead ? "" : "unread"}`}
-                    key={item._id || item.id}
-                  >
-                    <img
-                      src={item.fromProfilePic || DEFAULT_AVATAR}
-                      alt={item.fromUsername || "user"}
-                    />
-                    <div className="home-list__meta">
-                      <strong>{item.fromUsername || "user"}</strong>
-                      <span>
-                        {item.type === "like"
-                          ? "postingizni yoqtirdi"
-                          : "postingizga komment yozdi"}
-                      </span>
-                    </div>
-                    <em>
-                      {item.createdAt
-                        ? formatRelativeTimeUz(item.createdAt)
-                        : ""}
-                    </em>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="home-empty-following">
-                Hozircha bildirishnoma yo'q
-              </div>
+            {activePostId && (
+              <>
+                <div
+                  className="modal-backdrop"
+                  onClick={() => setActivePostId(null)}
+                ></div>
+                <ReportModal
+                  postId={activePostId}
+                  onClose={() => setActivePostId(null)}
+                />
+              </>
             )}
           </div>
 
-          <div className="home-card">
-            <div className="home-card__title">Siz uchun tavsiya</div>
-            {suggestedUsers.length ? (
-              <div className="home-list">
-                {suggestedUsers.map((user) => {
-                  const loading = Boolean(followLoadingMap[user.username]);
-                  return (
-                    <a href={`/${user.username}`}>
-                      <div className="home-list__item" key={user.username}>
-                        <img src={user.profilePic} alt={user.username} />
-                        <div className="home-list__meta">
-                          <strong>{user.displayName}</strong>
-                          <span>@{user.username}</span>
-                        </div>
-                        <button
-                          className="home-follow-btn"
-                          onClick={() => handleFollowFromFeed(user.username)}
-                          disabled={loading}
-                        >
-                          {loading ? "..." : "kuzatish"}
-                        </button>
+          <aside className="home-sidebar">
+            <div className="home-card">
+              <div className="home-card__title">Bildirishnomalar</div>
+              {notifications.length ? (
+                <div className="home-list">
+                  {notifications.map((item) => (
+                    <div
+                      className={`home-list__item ${item.isRead ? "" : "unread"}`}
+                      key={item._id || item.id}
+                    >
+                      <img
+                        src={item.fromProfilePic || DEFAULT_AVATAR}
+                        alt={item.fromUsername || "user"}
+                      />
+                      <div className="home-list__meta">
+                        <strong>{item.fromUsername || "user"}</strong>
+                        <span>
+                          {item.type === "like"
+                            ? "postingizni yoqtirdi"
+                            : "postingizga komment yozdi"}
+                        </span>
                       </div>
-                    </a>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="home-empty-following">
-                Tavsiya qilinadigan user yo'q
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
+                      <em>
+                        {item.createdAt
+                          ? formatRelativeTimeUz(item.createdAt)
+                          : ""}
+                      </em>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="home-empty-following">
+                  Hozircha bildirishnoma yo'q
+                </div>
+              )}
+            </div>
+
+            <div className="home-card">
+              <div className="home-card__title">Siz uchun tavsiya</div>
+              {suggestedUsers.length ? (
+                <div className="home-list">
+                  {suggestedUsers.map((user) => {
+                    const loading = Boolean(followLoadingMap[user.username]);
+                    return (
+                      <a href={`/${user.username}`}>
+                        <div className="home-list__item" key={user.username}>
+                          <img src={user.profilePic} alt={user.username} />
+                          <div className="home-list__meta">
+                            <strong>{user.displayName}</strong>
+                            <span>@{user.username}</span>
+                          </div>
+                          <button
+                            className="home-follow-btn"
+                            onClick={() => handleFollowFromFeed(user.username)}
+                            disabled={loading}
+                          >
+                            {loading ? "..." : "kuzatish"}
+                          </button>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="home-empty-following">
+                  Tavsiya qilinadigan user yo'q
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
 
       {commentsOpenFor ? (
         <div
@@ -748,22 +752,47 @@ function Home({ enableSeo = true }) {
                 <LiaTimesSolid />
               </button>
             </div>
-            <div className="comment-modal__list">
-              {(commentsByPost[commentsOpenFor] || []).length ? (
-                (commentsByPost[commentsOpenFor] || []).map((comment) => (
-                  <div className="post-comment" key={comment._id}>
+              <div className="comment-modal__list">
+                {(commentsByPost[commentsOpenFor] || []).length ? (
+                  (commentsByPost[commentsOpenFor] || []).map((comment) => (
+                    <div className="post-comment" key={comment._id}>
                     <img
                       src={comment.author?.profilePic || DEFAULT_AVATAR}
                       alt={comment.author?.username || "user"}
                     />
-                    <div>
-                      <strong>
-                        {comment.author?.username || "foydalanuvchi"}
-                      </strong>
-                      <p>{comment.text}</p>
+                      <div>
+                        <strong>
+                          {comment.author?.username || "foydalanuvchi"}
+                        </strong>
+                        <p>{comment.text}</p>
+                        {Number(comment.authorChatId) === Number(myChatId) ? (
+                          <button
+                            className="comment-delete-btn"
+                            onClick={async () => {
+                              try {
+                                await deleteComment(
+                                  commentsOpenFor,
+                                  comment._id,
+                                );
+                                setCommentsByPost((prev) => ({
+                                  ...prev,
+                                  [commentsOpenFor]: (
+                                    prev[commentsOpenFor] || []
+                                  ).filter((item) => item._id !== comment._id),
+                                }));
+                              } catch (error) {
+                                notifyError(
+                                  error.message || "Komment o'chmadi",
+                                );
+                              }
+                            }}
+                          >
+                            O'chirish
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))
               ) : (
                 <div className="post-comments__empty">Kommentlar yo'q</div>
               )}

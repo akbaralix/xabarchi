@@ -351,6 +351,33 @@ const addComment = async (req, res) => {
   }
 };
 
+const deleteComment = async (req, res) => {
+  if (!requireDbConnection(res)) return;
+  const { postId, commentId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: "postId noto'g'ri!" });
+  }
+  if (!mongoose.Types.ObjectId.isValid(commentId)) {
+    return res.status(400).json({ message: "commentId noto'g'ri!" });
+  }
+
+  try {
+    const comment = await PostComment.findOne({ _id: commentId, postId });
+    if (!comment) {
+      return res.status(404).json({ message: "Komment topilmadi" });
+    }
+    if (comment.authorChatId !== req.user.chatId) {
+      return res.status(403).json({ message: "Faqat o'zingiz kommentini o'chira olasiz" });
+    }
+
+    await PostComment.deleteOne({ _id: comment._id });
+    return res.json({ ok: true, commentId: String(comment._id), postId: String(postId) });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Kommentni o'chirishda xatolik" });
+  }
+};
+
 const addView = async (req, res) => {
   if (!requireDbConnection(res)) return;
   const { postId } = req.params;
@@ -426,5 +453,10 @@ postRouter.post("/posts/:postId/like", verifyToken, toggleLike);
 postRouter.post("/posts/:postId/view", verifyToken, addView);
 postRouter.get("/posts/:postId/comments", optionalVerifyToken, getComments);
 postRouter.post("/posts/:postId/comments", verifyToken, addComment);
+postRouter.delete(
+  "/posts/:postId/comments/:commentId",
+  verifyToken,
+  deleteComment,
+);
 
 export default postRouter;

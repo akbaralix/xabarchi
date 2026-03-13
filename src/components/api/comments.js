@@ -35,3 +35,18 @@ export const addComment = async (postId, text) => {
   }
   return data;
 };
+
+export const deleteComment = async (postId, commentId) => {
+  const response = await fetch(
+    `${API_BASE}/posts/${postId}/comments/${commentId}`,
+    {
+      method: "DELETE",
+      headers: buildAuthHeaders(),
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Kommentni o'chirishda xatolik");
+  }
+  return data;
+};

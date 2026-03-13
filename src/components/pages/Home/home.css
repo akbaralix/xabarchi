@@ -396,6 +396,15 @@
   font-size: 13px;
   color: #cbd2df;
 }
+.comment-delete-btn {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: #ff6b6b;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
 .post-comments__empty {
   color: #8b95a7;
   font-size: 13px;

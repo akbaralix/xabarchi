@@ -10,7 +10,8 @@ import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
 import { copyPostLink } from "../../services/postLink";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
-import { addComment, getComments } from "../../api/comments";
+import { addComment, deleteComment, getComments } from "../../api/comments";
+import { getUser } from "../../services/User";
 import Seo from "../../seo/Seo";
 import "./reels.css";
 
@@ -58,6 +59,7 @@ function Reels() {
   const [isReelLocked, setIsReelLocked] = useState(false);
   const [menuPostId, setMenuPostId] = useState(null);
   const [menuMode, setMenuMode] = useState("root");
+  const [myChatId, setMyChatId] = useState(null);
   const [commentsOpenFor, setCommentsOpenFor] = useState("");
   const [commentsByPost, setCommentsByPost] = useState({});
   const [commentInputMap, setCommentInputMap] = useState({});
@@ -84,6 +86,14 @@ function Reels() {
     };
 
     fetchData();
+    const loadMe = async () => {
+      const token = localStorage.getItem("UserToken");
+      if (!token) return;
+      const me = await getUser();
+      if (!me || cancelled) return;
+      setMyChatId(Number.isInteger(me.chatId) ? me.chatId : null);
+    };
+    loadMe();
     const refreshPosts = () => fetchData();
     window.addEventListener("post-created", refreshPosts);
 
@@ -557,14 +567,39 @@ function Reels() {
                         src={comment.author?.profilePic || DEFAULT_AVATAR}
                         alt={comment.author?.username || "user"}
                       />
-                      <div>
-                        <strong>
-                          {comment.author?.username || "foydalanuvchi"}
-                        </strong>
-                        <p>{comment.text}</p>
-                      </div>
+                    <div>
+                      <strong>
+                        {comment.author?.username || "foydalanuvchi"}
+                      </strong>
+                      <p>{comment.text}</p>
+                      {Number(comment.authorChatId) === Number(myChatId) ? (
+                        <button
+                          className="comment-delete-btn"
+                          onClick={async () => {
+                            try {
+                              await deleteComment(
+                                commentsOpenFor,
+                                comment._id,
+                              );
+                              setCommentsByPost((prev) => ({
+                                ...prev,
+                                [commentsOpenFor]: (
+                                  prev[commentsOpenFor] || []
+                                ).filter((item) => item._id !== comment._id),
+                              }));
+                            } catch (error) {
+                              notifyError(
+                                error.message || "Komment o'chmadi",
+                              );
+                            }
+                          }}
+                        >
+                          O'chirish
+                        </button>
+                      ) : null}
                     </div>
-                  ))
+                  </div>
+                ))
                 ) : (
                   <div className="post-comments__empty">Kommentlar yo'q</div>
                 )}

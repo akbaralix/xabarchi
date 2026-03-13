@@ -7,6 +7,7 @@ import {
   FaPaperPlane,
   FaInfoCircle,
 } from "react-icons/fa";
+import { FaRegComment } from "react-icons/fa";
 import { LiaTimesSolid } from "react-icons/lia";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,10 @@ import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
 import { followUserByUsername, getUser } from "../../services/User";
 import { copyPostLink } from "../../services/postLink";
+import { getNotifications } from "../../api/notifications";
+import { addComment, getComments } from "../../api/comments";
+import { io } from "socket.io-client";
+import { getSocketBase } from "../../api/chat";
 import Seo from "../../seo/Seo";
 import "./home.css";
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
@@ -189,11 +194,17 @@ function Home({ enableSeo = true }) {
   const [expandedPost, setExpandedPost] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
   const [carouselIndexes, setCarouselIndexes] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [commentsOpenFor, setCommentsOpenFor] = useState("");
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentInputMap, setCommentInputMap] = useState({});
+  const [commentLoadingMap, setCommentLoadingMap] = useState({});
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
   const navigate = useNavigate();
+  const socketRef = useRef(null);
 
   const getCurrentImage = (item) => {
     const images = item.images || [];
@@ -289,6 +300,35 @@ function Home({ enableSeo = true }) {
     return () => {
       cancelled = true;
       window.removeEventListener("post-created", refreshPosts);
+    };
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("UserToken");
+    if (!token) return;
+    let active = true;
+
+    getNotifications()
+      .then((data) => {
+        if (!active) return;
+        setNotifications(data);
+      })
+      .catch(() => {});
+
+    const socket = io(getSocketBase(), {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      rememberUpgrade: true,
+    });
+    socketRef.current = socket;
+
+    socket.on("notification:new", (payload) => {
+      setNotifications((prev) => [payload, ...prev].slice(0, 50));
+    });
+
+    return () => {
+      active = false;
+      socket.disconnect();
     };
   }, []);
 
@@ -410,9 +450,27 @@ function Home({ enableSeo = true }) {
     return !followingUsernames.has(username);
   });
 
+  const suggestedUsers = Array.from(
+    suggestedPosts.reduce((map, item) => {
+      const username = normalizeUsername(item.userName);
+      if (!username || map.has(username)) return map;
+      map.set(username, {
+        username,
+        displayName: item.userName,
+        profilePic: item.profilePic || DEFAULT_AVATAR,
+      });
+      return map;
+    }, new Map()),
+  )
+    .map(([, value]) => value)
+    .slice(0, 6);
+
   const renderPostItem = (item, index, isSuggested = false) => {
     const normalizedUser = normalizeUsername(item.userName);
     const followLoading = Boolean(followLoadingMap[normalizedUser]);
+    const comments = commentsByPost[item.id] || [];
+    const commentLoading = Boolean(commentLoadingMap[item.id]);
+    const commentValue = commentInputMap[item.id] || "";
     return (
       <div
         className="post-item"
@@ -498,14 +556,40 @@ function Home({ enableSeo = true }) {
 
         <div className="post-bottom">
           <div className="user-post_actions">
-            <div className="like-actions">
+            <div className="post-actions-left">
+              <div className="like-actions">
+                <button
+                  onClick={() => handleLike(item.id)}
+                  className={`like-button ${item.liked ? "liked" : ""}`}
+                >
+                  {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
+                </button>
+                <span className="post-like">{formatNumber(item.like)}</span>
+              </div>
               <button
-                onClick={() => handleLike(item.id)}
-                className={`like-button ${item.liked ? "liked" : ""}`}
+                className={`comment-toggle ${
+                  commentsOpenFor === item.id ? "active" : ""
+                }`}
+                onClick={async () => {
+                  setCommentsOpenFor(item.id);
+                  if (!commentsByPost[item.id]) {
+                    try {
+                      const data = await getComments(item.id, 20);
+                      setCommentsByPost((prev) => ({
+                        ...prev,
+                        [item.id]: data,
+                      }));
+                    } catch (error) {
+                      notifyError(
+                        error.message || "Kommentlarni olishda xatolik",
+                      );
+                    }
+                  }
+                }}
               >
-                {item.liked ? <BsHeartFill color="red" /> : <BsHeart />}
+                <FaRegComment />
               </button>
-              <span className="post-like">{formatNumber(item.like)}</span>
+              <span>{comments.length}</span>
             </div>
             <span className="post-views__count" title="Ko'rishlar">
               <BsEye /> {formatNumber(item.views)}
@@ -543,38 +627,208 @@ function Home({ enableSeo = true }) {
       {enableSeo ? (
         <Seo description="Xabarchi bosh sahifasi: yangi postlar, like va ko'rishlar." />
       ) : null}
-      <div className="post-container home-feed">
-        {followedPosts.length ? (
-          <>
-            <div className="home-section-title">Kuzatayotganlaringiz</div>
-            {followedPosts.map((item, index) =>
-              renderPostItem(item, index, false),
-            )}
-          </>
-        ) : null}
+      <div className="home-layout">
+        <div className="post-container home-feed">
+          {followedPosts.length ? (
+            <>
+              <div className="home-section-title">Kuzatayotganlaringiz</div>
+              {followedPosts.map((item, index) =>
+                renderPostItem(item, index, false),
+              )}
+            </>
+          ) : null}
 
-        {suggestedPosts.length ? (
-          <>
-            <div className="home-section-title">Siz uchun tavsiya</div>
-            {suggestedPosts.map((item, index) =>
-              renderPostItem(item, index + followedPosts.length, true),
-            )}
-          </>
-        ) : null}
+          {suggestedPosts.length ? (
+            <>
+              <div className="home-section-title">Siz uchun tavsiya</div>
+              {suggestedPosts.map((item, index) =>
+                renderPostItem(item, index + followedPosts.length, true),
+              )}
+            </>
+          ) : null}
 
-        {activePostId && (
-          <>
-            <div
-              className="modal-backdrop"
-              onClick={() => setActivePostId(null)}
-            ></div>
-            <ReportModal
-              postId={activePostId}
-              onClose={() => setActivePostId(null)}
-            />
-          </>
-        )}
+          {activePostId && (
+            <>
+              <div
+                className="modal-backdrop"
+                onClick={() => setActivePostId(null)}
+              ></div>
+              <ReportModal
+                postId={activePostId}
+                onClose={() => setActivePostId(null)}
+              />
+            </>
+          )}
+        </div>
+
+        <aside className="home-sidebar">
+          <div className="home-card">
+            <div className="home-card__title">Bildirishnomalar</div>
+            {notifications.length ? (
+              <div className="home-list">
+                {notifications.map((item) => (
+                  <div
+                    className={`home-list__item ${item.isRead ? "" : "unread"}`}
+                    key={item._id || item.id}
+                  >
+                    <img
+                      src={item.fromProfilePic || DEFAULT_AVATAR}
+                      alt={item.fromUsername || "user"}
+                    />
+                    <div className="home-list__meta">
+                      <strong>{item.fromUsername || "user"}</strong>
+                      <span>
+                        {item.type === "like"
+                          ? "postingizni yoqtirdi"
+                          : "postingizga komment yozdi"}
+                      </span>
+                    </div>
+                    <em>
+                      {item.createdAt
+                        ? formatRelativeTimeUz(item.createdAt)
+                        : ""}
+                    </em>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="home-empty-following">
+                Hozircha bildirishnoma yo'q
+              </div>
+            )}
+          </div>
+
+          <div className="home-card">
+            <div className="home-card__title">Siz uchun tavsiya</div>
+            {suggestedUsers.length ? (
+              <div className="home-list">
+                {suggestedUsers.map((user) => {
+                  const loading = Boolean(followLoadingMap[user.username]);
+                  return (
+                    <a href={`/${user.username}`}>
+                      <div className="home-list__item" key={user.username}>
+                        <img src={user.profilePic} alt={user.username} />
+                        <div className="home-list__meta">
+                          <strong>{user.displayName}</strong>
+                          <span>@{user.username}</span>
+                        </div>
+                        <button
+                          className="home-follow-btn"
+                          onClick={() => handleFollowFromFeed(user.username)}
+                          disabled={loading}
+                        >
+                          {loading ? "..." : "kuzatish"}
+                        </button>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="home-empty-following">
+                Tavsiya qilinadigan user yo'q
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
+
+      {commentsOpenFor ? (
+        <div
+          className="comment-modal-backdrop"
+          onClick={() => setCommentsOpenFor("")}
+        >
+          <div className="comment-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="comment-modal__header">
+              <span>Kommentlar</span>
+              <button
+                className="comment-modal__close"
+                onClick={() => setCommentsOpenFor("")}
+              >
+                <LiaTimesSolid />
+              </button>
+            </div>
+            <div className="comment-modal__list">
+              {(commentsByPost[commentsOpenFor] || []).length ? (
+                (commentsByPost[commentsOpenFor] || []).map((comment) => (
+                  <div className="post-comment" key={comment._id}>
+                    <img
+                      src={comment.author?.profilePic || DEFAULT_AVATAR}
+                      alt={comment.author?.username || "user"}
+                    />
+                    <div>
+                      <strong>
+                        {comment.author?.username || "foydalanuvchi"}
+                      </strong>
+                      <p>{comment.text}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="post-comments__empty">Kommentlar yo'q</div>
+              )}
+            </div>
+            <div className="comment-modal__input">
+              <div className="post-comments__avatar">
+                <img src={DEFAULT_AVATAR} alt="me" />
+              </div>
+              <input
+                value={commentInputMap[commentsOpenFor] || ""}
+                placeholder="Komment yozing..."
+                onChange={(e) =>
+                  setCommentInputMap((prev) => ({
+                    ...prev,
+                    [commentsOpenFor]: e.target.value,
+                  }))
+                }
+              />
+              <button
+                disabled={
+                  !(commentInputMap[commentsOpenFor] || "").trim() ||
+                  commentLoadingMap[commentsOpenFor]
+                }
+                onClick={async () => {
+                  const text = (commentInputMap[commentsOpenFor] || "").trim();
+                  if (!text) return;
+                  setCommentLoadingMap((prev) => ({
+                    ...prev,
+                    [commentsOpenFor]: true,
+                  }));
+                  try {
+                    const created = await addComment(commentsOpenFor, text);
+                    setCommentsByPost((prev) => ({
+                      ...prev,
+                      [commentsOpenFor]: [
+                        ...(prev[commentsOpenFor] || []),
+                        {
+                          ...created,
+                          author: {
+                            username: myUsername || "Siz",
+                            profilePic: "",
+                          },
+                        },
+                      ],
+                    }));
+                    setCommentInputMap((prev) => ({
+                      ...prev,
+                      [commentsOpenFor]: "",
+                    }));
+                  } catch (error) {
+                    notifyError(error.message || "Komment qo'shilmadi");
+                  } finally {
+                    setCommentLoadingMap((prev) => ({
+                      ...prev,
+                      [commentsOpenFor]: false,
+                    }));
+                  }
+                }}
+              >
+                {commentLoadingMap[commentsOpenFor] ? "..." : "Yuborish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

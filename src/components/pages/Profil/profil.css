@@ -1,32 +1,52 @@
 .profil-wrapper {
-  max-width: 1000px;
+  max-width: 935px;
+  width: 100%;
   margin: 0 auto;
-  padding: 24px 20px 100px;
+  padding: 32px 20px 100px;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-y: scroll;
 }
 img {
   user-select: none;
   -webkit-user-drag: none;
 }
 .profil-container {
+  max-width: 800px;
   width: 100%;
 }
 
 .profile-top {
+  width: 100%;
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 36px;
-  align-items: start;
+  grid-template-columns: 160px 1fr;
+  gap: 28px;
+  align-items: center;
+  padding: 8px 4px 22px;
 }
 
 .pofilePic {
-  width: 170px;
-  height: 170px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
-  padding: 4px;
-  background: linear-gradient(140deg, #8954fd, #8d28e0, #8a29f3, #6233ef);
+  padding: 3px;
+  background: linear-gradient(
+    135deg,
+    #feda75,
+    #fa7e1e,
+    #d62976,
+    #962fbf,
+    #4f5bd5
+  );
   cursor: pointer;
 }
 
@@ -34,7 +54,7 @@ img {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 4px solid #05090f;
+  border: 4px solid #0b0d12;
   object-fit: cover;
   object-position: center;
 }
@@ -42,39 +62,43 @@ img {
 .userActions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  position: relative;
 }
 
 .userName {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .userName h3 {
   font-size: 22px;
-  line-height: 1;
+  line-height: 1.1;
+  font-weight: 600;
 }
 
 .profile-edit-toggle {
   position: absolute;
-  right: 20px;
+  right: 0;
+  top: 0;
   width: 34px;
   height: 34px;
   border-radius: 50%;
   background: transparent;
-  border: 1px solid #fff;
+  border: 1px solid #2a2e37;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #e7e9ee;
   cursor: pointer;
 }
 
 .post-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 
 .post-actions div {
@@ -84,16 +108,18 @@ img {
 }
 
 .post-actions strong {
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .post-actions span {
-  color: #c2c8d1;
+  color: #a9b0bc;
+  font-size: 14px;
 }
 
 .profile-bio-block p {
-  line-height: 15px;
-  font-size: 16px;
+  line-height: 1.2;
+  font-size: 15px;
+  color: #e4e7ee;
 }
 
 .profile-bio {
@@ -121,48 +147,68 @@ img {
 
 .profile-action-row {
   display: flex;
-  max-width: 460px;
+  max-width: 480px;
   gap: 10px;
-  margin: 10px;
+  margin: 12px 4px 0;
 }
 
 .profile-message-btn {
   border: none;
   height: 40px;
-  margin-top: 10px;
-  background: #6939ed;
+  margin-top: 0;
+  background: #330ccf;
   color: #fff;
-  border-radius: 11px;
-  padding: 11px 16px;
-  font-size: 16px;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   flex: 1;
 }
 
 .profile-follow-btn {
-  border: 1px solid #2e6aff;
   height: 40px;
-  margin-top: 10px;
+  margin-top: 0;
+  border: 1px solid #2a2e37;
   background: #2e6aff;
   color: #fff;
-  border-radius: 11px;
-  padding: 11px 16px;
-  font-size: 16px;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   flex: 1;
 }
+.follow-loading {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 .profile-follow-btn.following {
   background: transparent;
-  border-color: #4f5f7a;
+  border-color: #3a3f4a;
   color: #e6ecf8;
 }
 
 .profile-follow-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.profile-follow-btn.loading {
+  opacity: 0.8;
 }
 
 .profile-bio-editcontainer {
@@ -276,15 +322,18 @@ img {
 .user-posts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2px;
-  margin-top: 18px;
+  gap: 3px;
+  margin-top: 6px;
   flex: 1;
   align-content: start;
+  border-top: 1px solid #1c1f26;
+  padding-top: 16px;
+  min-height: 520px;
 }
 
 .profile-post_item {
   position: relative;
-  background: #101825;
+  background: #0e1117;
   aspect-ratio: 1 / 1;
   overflow: hidden;
 }
@@ -425,7 +474,7 @@ img {
   align-items: center;
   justify-content: center;
   grid-column: 1 / -1;
-  min-height: 240px;
+  min-height: 520px;
   width: 100%;
   margin: 0;
 }
@@ -512,13 +561,13 @@ img {
 
 @media screen and (max-width: 750px) {
   .profil-wrapper {
-    padding: 12px 0 90px;
+    padding: 16px 12px 90px;
   }
 
   .profile-top {
     grid-template-columns: 92px 1fr;
     gap: 14px;
-    padding: 0 12px;
+    padding: 0 4px 18px;
   }
 
   .pofilePic {
@@ -532,7 +581,7 @@ img {
   }
 
   .userName h3 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .post-actions {
@@ -566,19 +615,18 @@ img {
 
   .profile-action-row {
     max-width: 100%;
+    margin: 12px 4px 0;
   }
 
   .profile-message-btn {
-    font-size: 14px;
+    font-size: 13px;
     height: 36px;
-    margin-top: 12px;
-    padding: 10px 12px;
+    padding: 9px 12px;
   }
   .profile-follow-btn {
-    font-size: 14px;
+    font-size: 13px;
     height: 36px;
-    margin-top: 12px;
-    padding: 10px 12px;
+    padding: 9px 12px;
   }
 
   .profile-bio-editcontainer {
@@ -608,6 +656,7 @@ img {
 
   .user-posts {
     gap: 1px;
+    min-height: 360px;
   }
 
   .post-views {

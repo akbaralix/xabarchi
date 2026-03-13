@@ -1,6 +1,8 @@
 import express from "express";
 import mongoose from "mongoose";
 import Post from "../models/Post.js";
+import Notification from "../models/Notification.js";
+import PostComment from "../models/PostComment.js";
 import User from "../models/User.js";
 import { optionalVerifyToken, verifyToken } from "../middleware/auth.js";
 
@@ -44,6 +46,44 @@ const attachProfilePics = async (posts) => {
     ...post,
     profilePic: userPicMap.get(post.authorChatId) || post.profilePic || "",
   }));
+};
+
+const createNotification = async ({
+  req,
+  toChatId,
+  fromChatId,
+  type,
+  postId,
+  commentId,
+  text,
+}) => {
+  if (!toChatId || !fromChatId || toChatId === fromChatId) return null;
+  const fromUser = await User.findOne({ chatId: fromChatId })
+    .select("username firstName profilePic")
+    .lean();
+  const payload = {
+    toChatId,
+    fromChatId,
+    type,
+    postId,
+    commentId,
+    text: text || "",
+    fromUsername: fromUser?.username || fromUser?.firstName || "",
+    fromProfilePic: fromUser?.profilePic || "",
+  };
+  const created = await Notification.create(payload);
+
+  const io = req.app.get("io");
+  if (io) {
+    io.to(`user:${toChatId}`).emit("notification:new", {
+      _id: created._id,
+      ...payload,
+      isRead: created.isRead,
+      createdAt: created.createdAt,
+    });
+  }
+
+  return created;
 };
 
 const createPost = async (req, res) => {
@@ -205,6 +245,16 @@ const toggleLike = async (req, res) => {
     post.likes = post.likedByChatIds.length;
     await post.save();
 
+    if (!hasLiked && post.authorChatId !== req.user.chatId) {
+      await createNotification({
+        req,
+        toChatId: post.authorChatId,
+        fromChatId: req.user.chatId,
+        type: "like",
+        postId: post._id,
+      });
+    }
+
     return res.json({
       postId: post._id,
       liked: !hasLiked,
@@ -213,6 +263,91 @@ const toggleLike = async (req, res) => {
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Like yangilashda xatolik" });
+  }
+};
+
+const getComments = async (req, res) => {
+  if (!requireDbConnection(res)) return;
+  const { postId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: "postId noto'g'ri!" });
+  }
+
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+    const comments = await PostComment.find({ postId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const chatIds = [...new Set(comments.map((c) => c.authorChatId))];
+    const users = await User.find({ chatId: { $in: chatIds } })
+      .select("chatId username firstName profilePic")
+      .lean();
+    const userMap = new Map(users.map((u) => [u.chatId, u]));
+
+    const prepared = comments
+      .map((comment) => {
+        const author = userMap.get(comment.authorChatId);
+        return {
+          ...comment,
+          author: author
+            ? {
+                chatId: author.chatId,
+                username: author.username || author.firstName || "",
+                profilePic: author.profilePic || "",
+              }
+            : null,
+        };
+      })
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    return res.json(prepared);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Kommentlarni olishda xatolik" });
+  }
+};
+
+const addComment = async (req, res) => {
+  if (!requireDbConnection(res)) return;
+  const { postId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(postId)) {
+    return res.status(400).json({ message: "postId noto'g'ri!" });
+  }
+
+  try {
+    const text = String(req.body?.text || "").trim();
+    if (!text) {
+      return res.status(400).json({ message: "Komment matni bo'sh" });
+    }
+    if (text.length > 1000) {
+      return res.status(400).json({ message: "Komment 1000 belgidan oshmasin" });
+    }
+
+    const post = await Post.findById(postId).lean();
+    if (!post) return res.status(404).json({ message: "Post topilmadi!" });
+
+    const comment = await PostComment.create({
+      postId,
+      authorChatId: req.user.chatId,
+      text,
+    });
+
+    await createNotification({
+      req,
+      toChatId: post.authorChatId,
+      fromChatId: req.user.chatId,
+      type: "comment",
+      postId: post._id,
+      commentId: comment._id,
+      text,
+    });
+
+    return res.status(201).json(comment);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Komment qo'shishda xatolik" });
   }
 };
 
@@ -289,5 +424,7 @@ postRouter.post("/add", verifyToken, createPost);
 postRouter.delete("/posts/:postId", verifyToken, deletePost);
 postRouter.post("/posts/:postId/like", verifyToken, toggleLike);
 postRouter.post("/posts/:postId/view", verifyToken, addView);
+postRouter.get("/posts/:postId/comments", optionalVerifyToken, getComments);
+postRouter.post("/posts/:postId/comments", verifyToken, addComment);
 
 export default postRouter;

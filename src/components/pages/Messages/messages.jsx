@@ -18,6 +18,8 @@ import {
   sendMessage,
   startConversation,
 } from "../../api/chat";
+import { MdWarning } from "react-icons/md";
+
 import {
   decryptText,
   encryptText,
@@ -31,6 +33,26 @@ const UI_CACHE_TTL = 5 * 60_000;
 
 const getUiCacheKey = () =>
   `chat:ui:${localStorage.getItem("UserToken") || "guest"}`;
+
+const getPreviewCacheKey = () =>
+  `chat:preview:${localStorage.getItem("UserToken") || "guest"}`;
+
+const readPreviewCache = () => {
+  try {
+    const raw = localStorage.getItem(getPreviewCacheKey());
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writePreviewCache = (conversationId, text) => {
+  if (!conversationId || !text) return;
+  const cache = readPreviewCache();
+  cache[String(conversationId)] = text;
+  localStorage.setItem(getPreviewCacheKey(), JSON.stringify(cache));
+};
 
 const readUiCache = () => {
   const cached = getCached(getUiCacheKey());
@@ -89,6 +111,8 @@ function Messages() {
     Boolean(initialUiState.me || initialUiState.conversations?.length),
   );
   const conversationsRef = useRef([]);
+  const pendingPlainTextRef = useRef("");
+  const pendingConversationIdRef = useRef("");
   const conversationLongPressTimerRef = useRef(null);
   const conversationLongPressTriggeredRef = useRef(false);
   const messageLongPressTimerRef = useRef(null);
@@ -109,7 +133,19 @@ function Messages() {
 
   const refreshConversations = async (preserveSelection = true) => {
     const data = await getConversations();
-    setConversations(data);
+    const previewCache = readPreviewCache();
+    const merged = data.map((item) => {
+      const preview = previewCache[String(item._id)];
+      if (!preview) return item;
+      if (item.lastMessage && item.lastMessage !== "Shifrlangan xabar") {
+        return item;
+      }
+      return {
+        ...item,
+        lastMessage: preview,
+      };
+    });
+    setConversations(merged);
 
     if (!preserveSelection) {
       setSelectedConversationId(isMobileScreen() ? "" : data[0]?._id || "");
@@ -269,6 +305,10 @@ function Messages() {
         preparedIncoming?.text ||
         (preparedIncoming?.e2e ? "Shifrlangan xabar" : incoming?.text || "");
 
+      if (previewText && preparedIncoming?.conversationId) {
+        writePreviewCache(preparedIncoming.conversationId, previewText);
+      }
+
       if (
         incoming?.senderChatId !== meChatIdRef.current &&
         String(incoming?.conversationId) ===
@@ -288,17 +328,14 @@ function Messages() {
           return prev;
         }
         if (
-          prev.some(
-            (item) => String(item._id) === String(preparedIncoming._id),
-          )
+          prev.some((item) => String(item._id) === String(preparedIncoming._id))
         ) {
           return prev;
         }
 
         if (preparedIncoming.clientMessageId) {
           const tempIndex = prev.findIndex(
-            (item) =>
-              item.clientMessageId === preparedIncoming.clientMessageId,
+            (item) => item.clientMessageId === preparedIncoming.clientMessageId,
           );
           if (tempIndex >= 0) {
             const next = [...prev];
@@ -467,6 +504,17 @@ function Messages() {
           ? data.map((item) => prepareMessage(item, peerPublicKey))
           : [];
         setMessages(prepared);
+        const last = prepared[prepared.length - 1];
+        if (last?.text) {
+          writePreviewCache(selectedConversationId, last.text);
+          setConversations((prev) =>
+            prev.map((item) =>
+              String(item._id) === String(selectedConversationId)
+                ? { ...item, lastMessage: last.text }
+                : item,
+            ),
+          );
+        }
         setConversations((prev) =>
           prev.map((item) =>
             String(item._id) === String(selectedConversationId)
@@ -499,8 +547,7 @@ function Messages() {
 
   useEffect(() => {
     if (!selectedConversationId) return;
-    const peerPublicKey =
-      selectedConversation?.otherUser?.e2ePublicKey || "";
+    const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
     if (!peerPublicKey) return;
     setMessages((prev) =>
       prev.map((item) => prepareMessage(item, peerPublicKey)),
@@ -601,6 +648,18 @@ function Messages() {
   const handleConfirmDelete = async () => {
     if (!confirmAction) return;
 
+    if (confirmAction.type === "send-plain") {
+      const plainText = pendingPlainTextRef.current;
+      const conversationId = pendingConversationIdRef.current;
+      pendingPlainTextRef.current = "";
+      pendingConversationIdRef.current = "";
+      setConfirmAction(null);
+      if (plainText && conversationId) {
+        await sendPlainMessage(plainText, conversationId);
+      }
+      return;
+    }
+
     if (confirmAction.type === "conversation") {
       try {
         await deleteConversation(confirmAction.conversationId);
@@ -660,6 +719,78 @@ function Messages() {
     }
   };
 
+  const sendPlainMessage = async (content, conversationId) => {
+    socketRef.current?.emit("chat:stop-typing", {
+      conversationId,
+    });
+    if (stopTypingTimerRef.current) {
+      clearTimeout(stopTypingTimerRef.current);
+      stopTypingTimerRef.current = null;
+    }
+
+    const clientMessageId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tempMessage = {
+      _id: clientMessageId,
+      conversationId,
+      text: content,
+      senderChatId: meChatIdRef.current,
+      createdAt: new Date().toISOString(),
+      clientMessageId,
+      readByChatIds: [meChatIdRef.current],
+    };
+
+    setMessages((prev) => [...prev, tempMessage]);
+    setText("");
+    writePreviewCache(conversationId, content);
+    setConversations((prev) =>
+      prev
+        .map((item) =>
+          String(item._id) === String(conversationId)
+            ? {
+                ...item,
+                lastMessage: content,
+                lastMessageAt: tempMessage.createdAt,
+              }
+            : item,
+        )
+        .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt)),
+    );
+
+    try {
+      const sent = await sendMessage(conversationId, content, clientMessageId);
+      setMessages((prev) =>
+        prev
+          .map((item) =>
+            item.clientMessageId === clientMessageId ? sent : item,
+          )
+          .filter((item, index, arr) => {
+            const id = String(item._id);
+            return arr.findIndex((x) => String(x._id) === id) === index;
+          }),
+      );
+      setConversations((prev) =>
+        prev
+          .map((item) =>
+            String(item._id) === String(conversationId)
+              ? {
+                  ...item,
+                  lastMessage: sent.text || content,
+                  lastMessageAt: sent.createdAt,
+                }
+              : item,
+          )
+          .sort(
+            (a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt),
+          ),
+      );
+    } catch (err) {
+      setMessages((prev) =>
+        prev.filter((item) => item.clientMessageId !== clientMessageId),
+      );
+      notifyError(err.message || "Xabar yuborishda xatolik");
+    }
+  };
+
   const handleSend = async () => {
     const content = text.trim();
     if (!content || !selectedConversationId) return;
@@ -667,8 +798,16 @@ function Messages() {
     const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
     const keyPair = getStoredKeyPair() || ensureKeyPair();
 
-    if (!peerPublicKey || !keyPair?.secretKey) {
-      notifyError("Bu foydalanuvchida E2E kaliti yo'q");
+    if (!peerPublicKey || !keyPair?.secretKey || !e2eReady) {
+      pendingPlainTextRef.current = content;
+      pendingConversationIdRef.current = selectedConversationId;
+      setConfirmAction({
+        type: "send-plain",
+        title: "E2E kalit yo'q",
+        description:
+          "Bu foydalanuvchida E2E kalit yo'q. Xabar shifrlanmay yuboriladi. Davom etasizmi?",
+        confirmLabel: "Shifrlamasdan yuborish",
+      });
       return;
     }
 
@@ -702,6 +841,7 @@ function Messages() {
 
     setMessages((prev) => [...prev, tempMessage]);
     setText("");
+    writePreviewCache(selectedConversationId, content);
     setConversations((prev) =>
       prev
         .map((item) =>
@@ -748,10 +888,10 @@ function Messages() {
           .map((item) =>
             String(item._id) === String(selectedConversationId)
               ? {
-                ...item,
-                lastMessage: preparedSent.text || content,
-                lastMessageAt: sent.createdAt || preparedSent.createdAt,
-              }
+                  ...item,
+                  lastMessage: preparedSent.text || content,
+                  lastMessageAt: sent.createdAt || preparedSent.createdAt,
+                }
               : item,
           )
           .sort(
@@ -786,7 +926,7 @@ function Messages() {
   }
 
   const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
-  const canSend = Boolean(text.trim()) && Boolean(peerPublicKey) && e2eReady;
+  const canSend = Boolean(text.trim());
 
   return (
     <>
@@ -901,8 +1041,11 @@ function Messages() {
 
               {!peerPublicKey ? (
                 <div className="chat-e2e-warning">
-                  Bu foydalanuvchi hali E2E kalitini sozlamagan. Shifrlangan
-                  xabar yuborib bo'lmaydi.
+                  Bu foydalanuvchi hali E2E kalitini sozlamagan. Xabar
+                  shifrlanmay yuboriladi.{" "}
+                  <span style={{ color: "red", fontSize: "19px" }}>
+                    <MdWarning />
+                  </span>
                 </div>
               ) : null}
 
@@ -998,11 +1141,7 @@ function Messages() {
                 </button>
               </div>
             </>
-          ) : (
-            <div className="chat-empty">
-              Chat tanlang yoki @username orqali oching
-            </div>
-          )}
+          ) : null}
         </section>
 
         {confirmAction ? (

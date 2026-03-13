@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
+import { FaRegComment } from "react-icons/fa";
 import { MdOutlineArrowBack } from "react-icons/md";
 
 import { FaEllipsisV } from "react-icons/fa";
@@ -9,6 +10,7 @@ import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
 import { copyPostLink } from "../../services/postLink";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
+import { addComment, getComments } from "../../api/comments";
 import Seo from "../../seo/Seo";
 import "./reels.css";
 
@@ -56,6 +58,10 @@ function Reels() {
   const [isReelLocked, setIsReelLocked] = useState(false);
   const [menuPostId, setMenuPostId] = useState(null);
   const [menuMode, setMenuMode] = useState("root");
+  const [commentsOpenFor, setCommentsOpenFor] = useState("");
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [commentInputMap, setCommentInputMap] = useState({});
+  const [commentLoadingMap, setCommentLoadingMap] = useState({});
   const viewedPostIdsRef = useRef(new Set());
   const trackRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -186,6 +192,10 @@ function Reels() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuPostId, closeMenu]);
+
+  useEffect(() => {
+    setCommentsOpenFor("");
+  }, [activeIndex]);
 
   useEffect(() => {
     const currentPostId = posts[activeIndex]?.id;
@@ -437,6 +447,27 @@ function Reels() {
                   {item.liked ? <BsHeartFill /> : <BsHeart />}
                   <span>{formatNumber(item.like)}</span>
                 </button>
+                <button
+                  className="reel-action-btn"
+                  type="button"
+                  onClick={async () => {
+                    setCommentsOpenFor(item.id);
+                    if (!commentsByPost[item.id]) {
+                      try {
+                        const data = await getComments(item.id, 20);
+                        setCommentsByPost((prev) => ({
+                          ...prev,
+                          [item.id]: data,
+                        }));
+                      } catch (error) {
+                        notifyError(error.message || "Kommentlarni olishda xatolik");
+                      }
+                    }
+                  }}
+                >
+                  <FaRegComment />
+                  <span>{(commentsByPost[item.id] || []).length}</span>
+                </button>
                 <div className="reel-action-btn reel-action-static">
                   <BsEye />
                   <span>{formatNumber(item.views)}</span>
@@ -502,6 +533,103 @@ function Reels() {
             </div>
           </>
         )}
+
+        {commentsOpenFor ? (
+          <div
+            className="comment-modal-backdrop"
+            onClick={() => setCommentsOpenFor("")}
+          >
+            <div className="comment-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="comment-modal__header">
+                <span>Kommentlar</span>
+                <button
+                  className="comment-modal__close"
+                  onClick={() => setCommentsOpenFor("")}
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="comment-modal__list">
+                {(commentsByPost[commentsOpenFor] || []).length ? (
+                  (commentsByPost[commentsOpenFor] || []).map((comment) => (
+                    <div className="post-comment" key={comment._id}>
+                      <img
+                        src={comment.author?.profilePic || DEFAULT_AVATAR}
+                        alt={comment.author?.username || "user"}
+                      />
+                      <div>
+                        <strong>
+                          {comment.author?.username || "foydalanuvchi"}
+                        </strong>
+                        <p>{comment.text}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="post-comments__empty">Kommentlar yo'q</div>
+                )}
+              </div>
+              <div className="comment-modal__input">
+                <div className="post-comments__avatar">
+                  <img src={DEFAULT_AVATAR} alt="me" />
+                </div>
+                <input
+                  value={commentInputMap[commentsOpenFor] || ""}
+                  placeholder="Komment yozing..."
+                  onChange={(e) =>
+                    setCommentInputMap((prev) => ({
+                      ...prev,
+                      [commentsOpenFor]: e.target.value,
+                    }))
+                  }
+                />
+                <button
+                  disabled={
+                    !(commentInputMap[commentsOpenFor] || "").trim() ||
+                    commentLoadingMap[commentsOpenFor]
+                  }
+                  onClick={async () => {
+                    const text = (commentInputMap[commentsOpenFor] || "").trim();
+                    if (!text) return;
+                    setCommentLoadingMap((prev) => ({
+                      ...prev,
+                      [commentsOpenFor]: true,
+                    }));
+                    try {
+                      const created = await addComment(commentsOpenFor, text);
+                      setCommentsByPost((prev) => ({
+                        ...prev,
+                        [commentsOpenFor]: [
+                          ...(prev[commentsOpenFor] || []),
+                          {
+                            ...created,
+                            author: {
+                              username: "Siz",
+                              profilePic: "",
+                            },
+                          },
+                        ],
+                      }));
+                      setCommentInputMap((prev) => ({
+                        ...prev,
+                        [commentsOpenFor]: "",
+                      }));
+                    } catch (error) {
+                      notifyError(error.message || "Komment qo'shilmadi");
+                    } finally {
+                      setCommentLoadingMap((prev) => ({
+                        ...prev,
+                        [commentsOpenFor]: false,
+                      }));
+                    }
+                  }}
+                >
+                  {commentLoadingMap[commentsOpenFor] ? "..." : "Yuborish"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </>
   );

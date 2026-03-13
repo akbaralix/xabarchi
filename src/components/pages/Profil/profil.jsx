@@ -7,7 +7,6 @@ import { LiaTimesSolid } from "react-icons/lia";
 
 import { formatNumber } from "../../services/formatNumber";
 import { markPostView } from "../../api/postActions";
-import { copyPostLink } from "../../services/postLink";
 import {
   confirmAction,
   notifyError,
@@ -218,14 +217,6 @@ function Profil() {
     }
   };
 
-  const handleCopyLink = async (postId) => {
-    try {
-      await copyPostLink(postId);
-      notifySuccess("Post linki nusxalandi");
-    } catch {
-      notifyError("Linkni nusxalashda xatolik");
-    }
-  };
 
   const handleView = useCallback(async (id) => {
     if (!id || viewedPostIdsRef.current.has(id)) return;
@@ -329,11 +320,20 @@ function Profil() {
       return;
     }
 
+    const currentFirstName = String(user?.firstName || "").trim();
+    const currentBio = String(user?.bio || "").trim();
+    const nextBio = String(bio || "").trim();
+
+    if (normalizedFirstName === currentFirstName && nextBio === currentBio) {
+      setIsEditOpen(false);
+      return;
+    }
+
     setSavingBio(true);
     try {
       const updated = await updateUserProfile({
         firstName: normalizedFirstName,
-        bio,
+        bio: nextBio,
       });
       setUser(updated);
       setCurrentUser(updated);
@@ -483,12 +483,12 @@ function Profil() {
           {!isOwnProfile ? (
             <div className="profile-action-row">
               <button
-                className={`profile-follow-btn ${user.viewerIsFollowing ? "following" : ""}`}
+                className={`profile-follow-btn ${user.viewerIsFollowing ? "following" : ""} ${followLoading ? "loading" : ""}`}
                 onClick={handleFollowToggle}
                 disabled={followLoading}
               >
                 {followLoading
-                  ? "..."
+                  ? "Yuklanmoqda..."
                   : user.viewerIsFollowing
                     ? "Kuzatilyapti"
                     : "Kuzatish"}
@@ -632,12 +632,6 @@ function Profil() {
                         {formatNumber(item.views || 0)}
                       </span>
                     </div>
-                    <button
-                      className="post-link-btn"
-                      onClick={() => handleCopyLink(item._id)}
-                    >
-                      Link
-                    </button>
                     {isOwnProfile ? (
                       <button
                         className="post-delete-btn"

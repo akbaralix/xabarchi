@@ -15,6 +15,7 @@ import postRouter from "./routes/post.js";
 import chatRouter from "./routes/chat.js";
 import reportRouter from "./routes/report.js";
 import adminRouter from "./routes/admin.js";
+import notificationRouter from "./routes/notification.js";
 import Conversation from "./models/Conversation.js";
 import Message from "./models/Message.js";
 import User from "./models/User.js";
@@ -222,6 +223,7 @@ app.use(postRouter);
 app.use(chatRouter);
 app.use(reportRouter);
 app.use(adminRouter);
+app.use(notificationRouter);
 
 app.use(express.static(path.join(__dirname, "..", "dist")));
 app.use((req, res) => {

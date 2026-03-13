@@ -87,11 +87,15 @@ export const getMessages = async (conversationId) => {
   return normalized;
 };
 
-export const sendMessage = async (conversationId, text, clientMessageId = "") => {
+export const sendMessage = async (conversationId, payload, clientMessageId = "") => {
+  const body =
+    typeof payload === "string"
+      ? { text: payload, clientMessageId }
+      : { ...(payload || {}), clientMessageId };
   const response = await fetch(`${API_BASE}/chats/${conversationId}/messages`, {
     method: "POST",
     headers: buildAuthHeaders(),
-    body: JSON.stringify({ text, clientMessageId }),
+    body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

@@ -12,12 +12,16 @@ const mapUser = (user) => ({
   username: user.username || null,
   firstName: user.firstName,
   profilePic: user.profilePic || "",
+  e2ePublicKey: user.e2ePublicKey || "",
 });
 
 const mapMessage = (message, sender) => ({
   _id: message._id,
   conversationId: message.conversationId,
   text: message.text,
+  ciphertext: message.ciphertext || "",
+  nonce: message.nonce || "",
+  e2e: Boolean(message.e2e),
   senderChatId: message.senderChatId,
   readByChatIds: Array.isArray(message.readByChatIds)
     ? message.readByChatIds
@@ -43,14 +47,14 @@ chatRouter.post("/chats/start", verifyToken, async (req, res) => {
     }
 
     const me = await User.findOne({ chatId: req.user.chatId }).select(
-      "chatId username firstName profilePic",
+      "chatId username firstName profilePic e2ePublicKey",
     );
     if (!me) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
     }
 
     const target = await User.findOne({ username }).select(
-      "chatId username firstName profilePic",
+      "chatId username firstName profilePic e2ePublicKey",
     );
     if (!target) {
       return res.status(404).json({ message: "Bu username topilmadi" });
@@ -103,7 +107,7 @@ chatRouter.get("/chats", verifyToken, async (req, res) => {
     ];
 
     const users = await User.find({ chatId: { $in: otherChatIds } })
-      .select("chatId username firstName profilePic")
+      .select("chatId username firstName profilePic e2ePublicKey")
       .lean();
 
     const userMap = new Map(users.map((user) => [user.chatId, user]));
@@ -169,7 +173,7 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
 
     const senderChatIds = [...new Set(messages.map((item) => item.senderChatId))];
     const users = await User.find({ chatId: { $in: senderChatIds } })
-      .select("chatId username firstName profilePic")
+      .select("chatId username firstName profilePic e2ePublicKey")
       .lean();
     const userMap = new Map(users.map((user) => [user.chatId, user]));
 
@@ -207,9 +211,17 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
   try {
     const { conversationId } = req.params;
     const text = String(req.body?.text || "").trim();
+    const ciphertext = String(req.body?.ciphertext || "").trim();
+    const nonce = String(req.body?.nonce || "").trim();
+    const e2e = Boolean(req.body?.e2e);
     const clientMessageId = String(req.body?.clientMessageId || "").trim();
-    if (!text) {
+    const isEncrypted = e2e || (ciphertext && nonce);
+    if (!text && !isEncrypted) {
       return res.status(400).json({ message: "Xabar matni bo'sh" });
+    }
+
+    if (isEncrypted && (!ciphertext || !nonce)) {
+      return res.status(400).json({ message: "Shifrlangan xabar noto'g'ri" });
     }
 
     const conversation = await getConversationForUser(conversationId, req.user.chatId);
@@ -220,13 +232,21 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
     const created = await Message.create({
       conversationId: conversation._id,
       senderChatId: req.user.chatId,
-      text,
+      text: isEncrypted ? "" : text,
+      ciphertext: isEncrypted ? ciphertext : "",
+      nonce: isEncrypted ? nonce : "",
+      e2e: isEncrypted,
       readByChatIds: [req.user.chatId],
     });
 
     await Conversation.updateOne(
       { _id: conversation._id },
-      { $set: { lastMessage: text, lastMessageAt: created.createdAt } },
+      {
+        $set: {
+          lastMessage: isEncrypted ? "Shifrlangan xabar" : text,
+          lastMessageAt: created.createdAt,
+        },
+      },
     );
 
     const payload = {
@@ -288,10 +308,12 @@ chatRouter.delete(
 
       const latest = await Message.findOne({ conversationId: conversation._id })
         .sort({ createdAt: -1 })
-        .select("text createdAt")
+        .select("text createdAt e2e")
         .lean();
 
-      const lastMessage = latest?.text || "";
+      const lastMessage = latest?.e2e
+        ? "Shifrlangan xabar"
+        : latest?.text || "";
       const lastMessageAt = latest?.createdAt || conversation.createdAt;
 
       await Conversation.updateOne(

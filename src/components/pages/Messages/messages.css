@@ -166,6 +166,16 @@
   background-color: #000000;
 }
 
+.chat-e2e-warning {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4d6;
+  color: #7a5200;
+  font-size: 0.9rem;
+  border: 1px solid #f3d28b;
+}
+
 .chat-header {
   border-bottom: 1px solid #2d2d2d;
   padding: 12px;
@@ -206,16 +216,16 @@
 .message-item {
   max-width: min(420px, 80%);
   align-self: flex-start;
-  background: #1b1b1f;
-  border: 1px solid #2f2f36;
+  background: #9811ff;
   border-radius: 8px;
   padding: 2px 10px;
+  line-height: 15px;
   font-family: "poppins", sans-serif;
 }
 
 .message-item.mine {
   align-self: flex-end;
-  background: #826bf5;
+  background: #3b019f;
 }
 
 .message-item p {

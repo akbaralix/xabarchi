@@ -37,10 +37,23 @@ const isValidHttpUrl = (value) => {
   }
 };
 
+const normalizeE2EPublicKey = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const buffer = Buffer.from(trimmed, "base64");
+    if (buffer.length !== 32) return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+};
+
 userRouter.get("/me", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ chatId: req.user.chatId }).select(
-      "firstName chatId username profilePic bio followerChatIds followingChatIds",
+      "firstName chatId username profilePic bio followerChatIds followingChatIds e2ePublicKey",
     );
 
     if (!user)
@@ -54,6 +67,32 @@ userRouter.get("/me", verifyToken, async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Serverda xatolik yuz berdi!" });
+  }
+});
+
+userRouter.patch("/me/e2e-key", verifyToken, async (req, res) => {
+  try {
+    const normalized = normalizeE2EPublicKey(req.body?.publicKey);
+    if (!normalized) {
+      return res
+        .status(400)
+        .json({ message: "publicKey noto'g'ri formatda" });
+    }
+
+    const updated = await User.findOneAndUpdate(
+      { chatId: req.user.chatId },
+      { $set: { e2ePublicKey: normalized } },
+      { new: true },
+    ).select("chatId e2ePublicKey");
+
+    if (!updated) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    return res.json(updated);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Kalitni saqlashda xatolik" });
   }
 });
 

@@ -64,6 +64,28 @@ export const updateUserProfile = async ({ profilePic, bio, firstName }) => {
   return normalized;
 };
 
+export const setE2EPublicKey = async (publicKey) => {
+  const token = localStorage.getItem("UserToken");
+  if (!token) throw new Error("Login talab qilinadi");
+
+  const response = await fetch(`${API_BASE}/me/e2e-key`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ publicKey }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "E2E kalitini saqlashda xatolik");
+  }
+
+  invalidateCache("user:");
+  return data;
+};
+
 export const getUserByUsername = async (username) => {
   const normalized = String(username || "")
     .replace(/^@/, "")

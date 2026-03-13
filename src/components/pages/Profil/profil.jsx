@@ -449,17 +449,6 @@ function Profil() {
             <div className="userActions">
               <div className="userName">
                 <h3>{user.username || user.firstName || "foydalanuvchi"}</h3>
-                {isOwnProfile ? (
-                  <button
-                    className="profile-edit-toggle"
-                    onClick={() => setIsEditOpen((prev) => !prev)}
-                    title={
-                      isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
-                    }
-                  >
-                    {isEditOpen ? <LiaTimesSolid /> : <FaPen />}
-                  </button>
-                ) : null}
               </div>
               <div className="profile-bio-block">
                 <p>{user.firstName || user.username || "Foydalanuvchi"}</p>
@@ -478,6 +467,17 @@ function Profil() {
                   <span>kuzatmoqda</span>
                 </div>
               </div>
+              {isOwnProfile ? (
+                <button
+                  className="profile-edit-toggle"
+                  onClick={() => setIsEditOpen((prev) => !prev)}
+                  title={
+                    isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
+                  }
+                >
+                  {isEditOpen ? <LiaTimesSolid /> : <FaPen />}
+                </button>
+              ) : null}
             </div>
           </div>
           {!isOwnProfile ? (

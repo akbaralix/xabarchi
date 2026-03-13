@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     blockedAt: { type: Date, default: null },
     blockedBy: { type: Number, default: null },
     lastActiveAt: { type: Date, default: null },
+    e2ePublicKey: { type: String, trim: true, default: "" },
   },
   { timestamps: true },
 );

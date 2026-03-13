@@ -4,7 +4,7 @@ import { BsSearch, BsArrowLeft, BsCheck, BsCheckAll } from "react-icons/bs";
 import { IoSend } from "react-icons/io5";
 
 import { useSearchParams } from "react-router-dom";
-import { getUser } from "../../services/User";
+import { getUser, setE2EPublicKey } from "../../services/User";
 import { notifyError, notifySuccess } from "../../../utils/feedback";
 import { getCached, setCached } from "../../services/cache";
 import { sortMessageLinks } from "../../services/formatNumber";
@@ -18,6 +18,12 @@ import {
   sendMessage,
   startConversation,
 } from "../../api/chat";
+import {
+  decryptText,
+  encryptText,
+  ensureKeyPair,
+  getStoredKeyPair,
+} from "../../../utils/e2e";
 import "./messages.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
@@ -71,6 +77,7 @@ function Messages() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [socketReconnecting, setSocketReconnecting] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [e2eReady, setE2EReady] = useState(false);
   const [searchParams] = useSearchParams();
 
   const socketRef = useRef(null);
@@ -81,6 +88,7 @@ function Messages() {
   const hasInitialUiRef = useRef(
     Boolean(initialUiState.me || initialUiState.conversations?.length),
   );
+  const conversationsRef = useRef([]);
   const conversationLongPressTimerRef = useRef(null);
   const conversationLongPressTriggeredRef = useRef(false);
   const messageLongPressTimerRef = useRef(null);
@@ -122,8 +130,66 @@ function Messages() {
   }, [selectedConversationId]);
 
   useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
     meChatIdRef.current = Number(me?.chatId || 0);
   }, [me]);
+
+  useEffect(() => {
+    if (!me) return;
+    let active = true;
+
+    const syncE2EKey = async () => {
+      try {
+        const keyPair = ensureKeyPair();
+        if (!active) return;
+        setE2EReady(true);
+        if (keyPair?.publicKey && keyPair.publicKey !== me?.e2ePublicKey) {
+          await setE2EPublicKey(keyPair.publicKey);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    syncE2EKey();
+
+    return () => {
+      active = false;
+    };
+  }, [me]);
+
+  const getPeerPublicKey = (conversationId) => {
+    const current = conversationsRef.current.find(
+      (item) => String(item._id) === String(conversationId),
+    );
+    return current?.otherUser?.e2ePublicKey || "";
+  };
+
+  const prepareMessage = (item, peerPublicKey) => {
+    if (!item || !item.e2e || !item.ciphertext || !item.nonce) return item;
+    const keyPair = getStoredKeyPair();
+    if (!keyPair || !peerPublicKey) {
+      return {
+        ...item,
+        text: item.text || "Shifrlangan xabar",
+      };
+    }
+
+    const plain = decryptText(
+      item.ciphertext,
+      item.nonce,
+      peerPublicKey,
+      keyPair.secretKey,
+    );
+
+    return {
+      ...item,
+      text: plain || "Shifrlangan xabarni ochib bo'lmadi",
+    };
+  };
 
   useEffect(() => {
     setCached(
@@ -197,6 +263,12 @@ function Messages() {
     });
 
     socket.on("chat:new-message", (incoming) => {
+      const peerPublicKey = getPeerPublicKey(incoming?.conversationId);
+      const preparedIncoming = prepareMessage(incoming, peerPublicKey);
+      const previewText =
+        preparedIncoming?.text ||
+        (preparedIncoming?.e2e ? "Shifrlangan xabar" : incoming?.text || "");
+
       if (
         incoming?.senderChatId !== meChatIdRef.current &&
         String(incoming?.conversationId) ===
@@ -215,22 +287,27 @@ function Messages() {
         ) {
           return prev;
         }
-        if (prev.some((item) => String(item._id) === String(incoming._id))) {
+        if (
+          prev.some(
+            (item) => String(item._id) === String(preparedIncoming._id),
+          )
+        ) {
           return prev;
         }
 
-        if (incoming.clientMessageId) {
+        if (preparedIncoming.clientMessageId) {
           const tempIndex = prev.findIndex(
-            (item) => item.clientMessageId === incoming.clientMessageId,
+            (item) =>
+              item.clientMessageId === preparedIncoming.clientMessageId,
           );
           if (tempIndex >= 0) {
             const next = [...prev];
-            next[tempIndex] = incoming;
+            next[tempIndex] = preparedIncoming;
             return next;
           }
         }
 
-        return [...prev, incoming];
+        return [...prev, preparedIncoming];
       });
 
       setConversations((prev) =>
@@ -239,7 +316,7 @@ function Messages() {
             String(conversation._id) === String(incoming.conversationId)
               ? {
                   ...conversation,
-                  lastMessage: incoming.text,
+                  lastMessage: previewText,
                   lastMessageAt: incoming.createdAt,
                   unreadCount:
                     incoming.senderChatId !== meChatIdRef.current &&
@@ -384,7 +461,12 @@ function Messages() {
 
     getMessages(selectedConversationId)
       .then((data) => {
-        setMessages(data);
+        const peerPublicKey =
+          selectedConversation?.otherUser?.e2ePublicKey || "";
+        const prepared = Array.isArray(data)
+          ? data.map((item) => prepareMessage(item, peerPublicKey))
+          : [];
+        setMessages(prepared);
         setConversations((prev) =>
           prev.map((item) =>
             String(item._id) === String(selectedConversationId)
@@ -416,6 +498,16 @@ function Messages() {
   }, [selectedConversationId]);
 
   useEffect(() => {
+    if (!selectedConversationId) return;
+    const peerPublicKey =
+      selectedConversation?.otherUser?.e2ePublicKey || "";
+    if (!peerPublicKey) return;
+    setMessages((prev) =>
+      prev.map((item) => prepareMessage(item, peerPublicKey)),
+    );
+  }, [selectedConversationId, selectedConversation?.otherUser?.e2ePublicKey]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -433,7 +525,6 @@ function Messages() {
       .then(async (created) => {
         await refreshConversations(true);
         setSelectedConversationId(created._id);
-        notifySuccess(`@${queryUser} bilan chat ochildi`);
       })
       .catch((err) => {
         notifyError(err.message || "Chat ochishda xatolik");
@@ -573,6 +664,20 @@ function Messages() {
     const content = text.trim();
     if (!content || !selectedConversationId) return;
 
+    const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
+    const keyPair = getStoredKeyPair() || ensureKeyPair();
+
+    if (!peerPublicKey || !keyPair?.secretKey) {
+      notifyError("Bu foydalanuvchida E2E kaliti yo'q");
+      return;
+    }
+
+    const encrypted = encryptText(content, peerPublicKey, keyPair.secretKey);
+    if (!encrypted) {
+      notifyError("Xabarni shifrlashda xatolik");
+      return;
+    }
+
     socketRef.current?.emit("chat:stop-typing", {
       conversationId: selectedConversationId,
     });
@@ -586,6 +691,9 @@ function Messages() {
       _id: clientMessageId,
       conversationId: selectedConversationId,
       text: content,
+      ciphertext: encrypted.ciphertext,
+      nonce: encrypted.nonce,
+      e2e: true,
       senderChatId: meChatIdRef.current,
       createdAt: new Date().toISOString(),
       clientMessageId,
@@ -611,7 +719,11 @@ function Messages() {
     try {
       const sent = await sendMessage(
         selectedConversationId,
-        content,
+        {
+          ciphertext: encrypted.ciphertext,
+          nonce: encrypted.nonce,
+          e2e: true,
+        },
         clientMessageId,
       );
       setMessages((prev) =>
@@ -630,7 +742,7 @@ function Messages() {
             String(item._id) === String(selectedConversationId)
               ? {
                   ...item,
-                  lastMessage: sent.text,
+                  lastMessage: sent.text || content,
                   lastMessageAt: sent.createdAt,
                 }
               : item,
@@ -665,6 +777,9 @@ function Messages() {
       </>
     );
   }
+
+  const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
+  const canSend = Boolean(text.trim()) && Boolean(peerPublicKey) && e2eReady;
 
   return (
     <>
@@ -720,7 +835,6 @@ function Messages() {
                 />
                 <div className="conversation-meta">
                   <strong>
-                    @
                     {conversation.otherUser?.username ||
                       conversation.otherUser?.firstName ||
                       "user"}
@@ -762,7 +876,6 @@ function Messages() {
                 <div>
                   <a href={`/@${selectedConversation.otherUser?.username}`}>
                     <strong>
-                      @
                       {selectedConversation.otherUser?.username ||
                         selectedConversation.otherUser?.firstName}
                     </strong>
@@ -778,6 +891,13 @@ function Messages() {
                   </p>
                 </div>
               </header>
+
+              {!peerPublicKey ? (
+                <div className="chat-e2e-warning">
+                  Bu foydalanuvchi hali E2E kalitini sozlamagan. Shifrlangan
+                  xabar yuborib bo'lmaydi.
+                </div>
+              ) : null}
 
               <div className="message-list">
                 {messages.map((item) => {
@@ -865,7 +985,7 @@ function Messages() {
                 <button
                   className="message-send-btn"
                   onClick={handleSend}
-                  disabled={!text.trim()}
+                  disabled={!canSend}
                 >
                   <IoSend />
                 </button>

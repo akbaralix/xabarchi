@@ -3,10 +3,11 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEllipsisV,
-  FaTimes,
+  FaCopy,
+  FaPaperPlane,
+  FaInfoCircle,
 } from "react-icons/fa";
 import { LiaTimesSolid } from "react-icons/lia";
-
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
 import { formatNumber } from "../../services/formatNumber";
@@ -133,16 +134,25 @@ const ReportModal = ({ postId, onClose }) => {
           <>
             <div className="report-post_item">
               <button onClick={handleShare} className="report-btn">
+                <span>
+                  <FaPaperPlane />
+                </span>
                 <span>Ulashish</span>
               </button>
             </div>
             <div className="report-post_item">
               <button onClick={handleCopyLink} className="report-btn">
+                <span>
+                  <FaCopy />
+                </span>
                 <span>Postni nusxalash</span>
               </button>
             </div>
             <div className="report-post_item">
               <button onClick={() => setMode("report")} className="report-btn">
+                <span>
+                  <FaInfoCircle />
+                </span>
                 <span>Shikoyat yuborish</span>
               </button>
             </div>

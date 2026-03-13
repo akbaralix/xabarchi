@@ -225,6 +225,9 @@
 }
 
 .admin-user-item .danger {
+  display: inline;
+  padding: 5px 10px;
+  border-radius: 4px;
   background: #b71e1e;
   color: #ffffff;
 }
@@ -271,7 +274,11 @@
 }
 
 .ok {
-  color: #6ddf9d;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background-color: rgb(13, 53, 234);
+  display: inline;
 }
 
 .danger {

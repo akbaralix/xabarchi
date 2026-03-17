@@ -27,7 +27,6 @@
 .home-empty-following {
   width: 100%;
   padding: 8px 14px 12px;
-  color: #9aa4b8;
   font-size: 14px;
 }
 .home-sidebar {
@@ -39,10 +38,12 @@
   width: 100%;
   max-width: 320px;
 }
-
+.home-sidebar a {
+  text-decoration: none;
+  color: inherit;
+}
 .home-card {
-  border: 1px solid #22242b;
-  background: #0f1116;
+  background: #0c0c0d;
   border-radius: 14px;
   padding: 14px;
   display: flex;
@@ -117,7 +118,7 @@
 }
 
 .home-notify-thumb {
-  border: 1px solid #1f2430;
+  border: none;
   background: #0b0e14;
   border-radius: 8px;
   padding: 2px;
@@ -128,10 +129,10 @@
 .home-notify-thumb img,
 .home-notify-thumb-empty {
   width: 46px;
-  height: 30px;
+  height: 35px;
   border-radius: 6px;
   object-fit: cover;
-  background: #1a1f2a;
+  background: #171819;
   display: block;
 }
 
@@ -139,9 +140,9 @@
   border: none;
   background: #2e6aff;
   color: #fff;
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -228,7 +229,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: #1a1a1b;
+  background-color: #0d0d0e;
   border-radius: 25px;
   padding: 20px;
   z-index: 1002;
@@ -256,15 +257,13 @@
   right: 10px;
   cursor: pointer;
   color: #ffffff;
-  font-size: 1.5rem;
-  background-color: #181818;
+  background: transparent;
+  font-size: 2rem;
   border: none;
-  border-top: 1px solid #565656a5;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
-  padding: 5px;
+  padding: 8px;
 }
 .report-btn {
   display: flex;
@@ -280,7 +279,7 @@
 }
 .report-post_item {
   padding: 15px 0;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid #3f3e3e;
 }
 
 .home-feed .post-img {

@@ -780,22 +780,23 @@ function Home({ enableSeo = true }) {
                   {suggestedUsers.map((user) => {
                     const loading = Boolean(followLoadingMap[user.username]);
                     return (
-                      <a href={`/${user.username}`}>
-                        <div className="home-list__item" key={user.username}>
-                          <img src={user.profilePic} alt={user.username} />
+                      <div className="home-list__item" key={user.username}>
+                        <img src={user.profilePic} alt={user.username} />
+                        <a href={`/${user.username}`}>
                           <div className="home-list__meta">
                             <strong>{user.displayName}</strong>
                             <span>@{user.username}</span>
                           </div>
-                          <button
-                            className="home-follow-btn"
-                            onClick={() => handleFollowFromFeed(user.username)}
-                            disabled={loading}
-                          >
-                            {loading ? "..." : "kuzatish"}
-                          </button>
-                        </div>
-                      </a>
+                        </a>
+
+                        <button
+                          className="home-follow-btn"
+                          onClick={() => handleFollowFromFeed(user.username)}
+                          disabled={loading}
+                        >
+                          {loading ? "..." : "kuzatish"}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

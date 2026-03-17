@@ -54,6 +54,13 @@ const writePreviewCache = (conversationId, text) => {
   localStorage.setItem(getPreviewCacheKey(), JSON.stringify(cache));
 };
 
+const removePreviewCache = (conversationId) => {
+  if (!conversationId) return;
+  const cache = readPreviewCache();
+  delete cache[String(conversationId)];
+  localStorage.setItem(getPreviewCacheKey(), JSON.stringify(cache));
+};
+
 const readUiCache = () => {
   const cached = getCached(getUiCacheKey());
   if (!cached || typeof cached !== "object") {
@@ -95,6 +102,7 @@ function Messages() {
   const [startUsername, setStartUsername] = useState(
     initialUiState.startUsername || "",
   );
+  const [startLoading, setStartLoading] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [socketReconnecting, setSocketReconnecting] = useState(false);
@@ -111,6 +119,7 @@ function Messages() {
     Boolean(initialUiState.me || initialUiState.conversations?.length),
   );
   const conversationsRef = useRef([]);
+  const messagesRequestIdRef = useRef(0);
   const pendingPlainTextRef = useRef("");
   const pendingConversationIdRef = useRef("");
   const conversationLongPressTimerRef = useRef(null);
@@ -131,8 +140,11 @@ function Messages() {
     Array.isArray(item?.readByChatIds) &&
     item.readByChatIds.some((id) => Number(id) !== meChatIdRef.current);
 
-  const refreshConversations = async (preserveSelection = true) => {
-    const data = await getConversations();
+  const refreshConversations = async (
+    preserveSelection = true,
+    force = false,
+  ) => {
+    const data = await getConversations({ force });
     const previewCache = readPreviewCache();
     const merged = data.map((item) => {
       const preview = previewCache[String(item._id)];
@@ -371,7 +383,7 @@ function Messages() {
     });
 
     socket.on("chat:conversation-updated", () => {
-      refreshConversations(true).catch(() => {});
+      refreshConversations(true, true).catch(() => {});
     });
 
     socket.on("chat:typing", (payload) => {
@@ -496,8 +508,16 @@ function Messages() {
 
     setIsOtherTyping(false);
 
-    getMessages(selectedConversationId)
+    const requestId = (messagesRequestIdRef.current += 1);
+    getMessages(selectedConversationId, { force: true })
       .then((data) => {
+        if (requestId !== messagesRequestIdRef.current) return;
+        if (
+          String(selectedConversationIdRef.current) !==
+          String(selectedConversationId)
+        ) {
+          return;
+        }
         const peerPublicKey =
           selectedConversation?.otherUser?.e2ePublicKey || "";
         const prepared = Array.isArray(data)
@@ -524,6 +544,7 @@ function Messages() {
         );
       })
       .catch((err) => {
+        if (requestId !== messagesRequestIdRef.current) return;
         console.error(err);
       });
 
@@ -570,7 +591,7 @@ function Messages() {
 
     startConversation(queryUser)
       .then(async (created) => {
-        await refreshConversations(true);
+        await refreshConversations(true, true);
         setSelectedConversationId(created._id);
       })
       .catch((err) => {
@@ -583,13 +604,16 @@ function Messages() {
     if (!username) return;
 
     try {
+      setStartLoading(true);
       const created = await startConversation(username);
       setStartUsername("");
-      await refreshConversations(true);
+      await refreshConversations(true, true);
       setSelectedConversationId(created._id);
       notifySuccess("Chat ochildi");
     } catch (err) {
       notifyError(err.message || "Chat ochishda xatolik");
+    } finally {
+      setStartLoading(false);
     }
   };
 
@@ -787,6 +811,8 @@ function Messages() {
       setMessages((prev) =>
         prev.filter((item) => item.clientMessageId !== clientMessageId),
       );
+      removePreviewCache(conversationId);
+      refreshConversations(true, true).catch(() => {});
       notifyError(err.message || "Xabar yuborishda xatolik");
     }
   };
@@ -902,6 +928,8 @@ function Messages() {
       setMessages((prev) =>
         prev.filter((item) => item.clientMessageId !== clientMessageId),
       );
+      removePreviewCache(selectedConversationId);
+      refreshConversations(true, true).catch(() => {});
       notifyError(err.message || "Xabar yuborishda xatolik");
     }
   };
@@ -948,8 +976,12 @@ function Messages() {
               onChange={(e) => setStartUsername(e.target.value)}
               placeholder="@username"
             />
-            <button onClick={handleStartConversation}>
-              <BsSearch />
+            <button onClick={handleStartConversation} disabled={startLoading}>
+              {startLoading ? (
+                <span className="chat-search-spinner" aria-hidden="true" />
+              ) : (
+                <BsSearch />
+              )}
             </button>
           </div>
 

@@ -21,6 +21,7 @@ const buildAuthHeaders = () => {
   const token = getToken();
   if (!token) {
     window.location.href = "/login";
+    throw new Error("Token topilmadi");
   }
   return {
     "Content-Type": "application/json",
@@ -28,10 +29,11 @@ const buildAuthHeaders = () => {
   };
 };
 
-export const getConversations = async () => {
+export const getConversations = async (options = {}) => {
+  const { force = false } = options;
   const cacheKey = getChatCacheKey("conversations");
   const cached = getCached(cacheKey);
-  if (cached) return cached;
+  if (!force && cached) return cached;
 
   const response = await fetch(`${API_BASE}/chats`, {
     headers: buildAuthHeaders(),
@@ -70,10 +72,11 @@ export const startConversation = async (username) => {
   return data;
 };
 
-export const getMessages = async (conversationId) => {
+export const getMessages = async (conversationId, options = {}) => {
+  const { force = false } = options;
   const cacheKey = getChatCacheKey(`messages:${conversationId}`);
   const cached = getCached(cacheKey);
-  if (cached) return cached;
+  if (!force && cached) return cached;
 
   const response = await fetch(`${API_BASE}/chats/${conversationId}/messages`, {
     headers: buildAuthHeaders(),

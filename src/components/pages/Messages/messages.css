@@ -64,6 +64,22 @@
   align-items: center;
   gap: 8px;
 }
+
+.chat-search-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: chatSpin 0.7s linear infinite;
+}
+
+@keyframes chatSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .message-send-btn {
   border-radius: 50%;
   width: 45px;
@@ -221,10 +237,12 @@
   line-height: 15px;
   font-family: "poppins", sans-serif;
 }
-
+.message-item a {
+  color: rgb(135, 116, 225, 1);
+}
 .message-item.mine {
   align-self: flex-end;
-  background: #3b019f;
+  background: #370292;
 }
 
 .message-item p {

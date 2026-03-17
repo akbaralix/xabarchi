@@ -167,7 +167,7 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
     }
 
     const messages = await Message.find({ conversationId: conversation._id })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
 
@@ -198,8 +198,9 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
         console.log("Read status update xatoligi:", error);
       });
 
+    const ordered = messages.reverse();
     return res.json(
-      messages.map((item) => mapMessage(item, userMap.get(item.senderChatId))),
+      ordered.map((item) => mapMessage(item, userMap.get(item.senderChatId))),
     );
   } catch (err) {
     console.log(err);

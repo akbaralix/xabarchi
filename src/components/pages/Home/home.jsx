@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FaChevronLeft,
   FaChevronRight,
@@ -8,6 +14,7 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { FaRegComment } from "react-icons/fa";
+import { IoMdNotificationsOutline } from "react-icons/io";
 import { LiaTimesSolid } from "react-icons/lia";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
 import { useNavigate } from "react-router-dom";
@@ -17,13 +24,18 @@ import { getPosts } from "../../api/posts";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
 import { followUserByUsername, getUser } from "../../services/User";
 import { copyPostLink } from "../../services/postLink";
-import { getNotifications } from "../../api/notifications";
-import { addComment, deleteComment, getComments } from "../../api/comments";
+import {
+  getNotifications,
+  markNotificationsRead,
+} from "../../api/notifications";
 import { io } from "socket.io-client";
 import { getSocketBase } from "../../api/chat";
 import Seo from "../../seo/Seo";
+import CommentModal from "../../comments/CommentModal";
+import { useComments } from "../../comments/useComments";
+import { DEFAULT_AVATAR } from "../../services/defaults";
+import { getPostImages } from "../../services/postMedia";
 import "./home.css";
-const DEFAULT_AVATAR = "/devault-avatar.jpg";
 
 const normalizeUsername = (value) =>
   String(value || "")
@@ -52,17 +64,7 @@ const formatRelativeTimeUz = (value) => {
 };
 
 const mapBackendPost = (item) => {
-  const images = Array.isArray(item.imageUrls)
-    ? item.imageUrls.filter(Boolean)
-    : Array.isArray(item.images)
-      ? item.images.filter(Boolean)
-      : [];
-  const fallbackImage = item.imageUrl || item.image || item.img;
-  const mergedImages = images.length
-    ? images
-    : fallbackImage
-      ? [fallbackImage]
-      : [];
+  const mergedImages = getPostImages(item);
 
   return {
     id: item._id || item.id,
@@ -196,16 +198,24 @@ function Home({ enableSeo = true }) {
   const [activePostId, setActivePostId] = useState(null);
   const [carouselIndexes, setCarouselIndexes] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [commentsOpenFor, setCommentsOpenFor] = useState("");
-  const [commentsByPost, setCommentsByPost] = useState({});
-  const [commentInputMap, setCommentInputMap] = useState({});
-  const [commentLoadingMap, setCommentLoadingMap] = useState({});
+  const [showNotifications, setShowNotifications] = useState(false);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const observerRef = useRef(null);
   const viewedPostIdsRef = useRef(new Set());
   const navigate = useNavigate();
   const socketRef = useRef(null);
+  const {
+    commentsOpenFor,
+    commentsByPost,
+    commentInputMap,
+    commentLoadingMap,
+    openComments,
+    closeComments,
+    setInput,
+    submitComment,
+    removeComment,
+  } = useComments({ myUsername, myChatId });
 
   const getCurrentImage = (item) => {
     const images = item.images || [];
@@ -333,6 +343,32 @@ function Home({ enableSeo = true }) {
       socket.disconnect();
     };
   }, []);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((item) => !item.isRead).length,
+    [notifications],
+  );
+
+  const handleOpenNotifications = async () => {
+    setShowNotifications(true);
+    const unreadIds = notifications
+      .filter((item) => !item.isRead)
+      .map((item) => item._id || item.id)
+      .filter(Boolean);
+    if (!unreadIds.length) return;
+    try {
+      await markNotificationsRead(unreadIds);
+      setNotifications((prev) =>
+        prev.map((item) =>
+          unreadIds.includes(item._id || item.id)
+            ? { ...item, isRead: true }
+            : item,
+        ),
+      );
+    } catch {
+      // xatolik bo'lsa ham overlay ochiq qoladi
+    }
+  };
 
   const handleFollowFromFeed = async (userName) => {
     const normalized = normalizeUsername(userName);
@@ -467,12 +503,24 @@ function Home({ enableSeo = true }) {
     .map(([, value]) => value)
     .slice(0, 6);
 
+  const postThumbById = useMemo(() => {
+    const map = new Map();
+    post.forEach((item) => {
+      const image =
+        (item.images && item.images[0]) ||
+        item.img ||
+        item.image ||
+        item.imageUrl ||
+        "";
+      if (item.id) map.set(item.id, image);
+    });
+    return map;
+  }, [post]);
+
   const renderPostItem = (item, index, isSuggested = false) => {
     const normalizedUser = normalizeUsername(item.userName);
     const followLoading = Boolean(followLoadingMap[normalizedUser]);
     const comments = commentsByPost[item.id] || [];
-    const commentLoading = Boolean(commentLoadingMap[item.id]);
-    const commentValue = commentInputMap[item.id] || "";
     return (
       <div
         className="post-item"
@@ -572,22 +620,7 @@ function Home({ enableSeo = true }) {
                 className={`comment-toggle ${
                   commentsOpenFor === item.id ? "active" : ""
                 }`}
-                onClick={async () => {
-                  setCommentsOpenFor(item.id);
-                  if (!commentsByPost[item.id]) {
-                    try {
-                      const data = await getComments(item.id, 20);
-                      setCommentsByPost((prev) => ({
-                        ...prev,
-                        [item.id]: data,
-                      }));
-                    } catch (error) {
-                      notifyError(
-                        error.message || "Kommentlarni olishda xatolik",
-                      );
-                    }
-                  }
-                }}
+                onClick={() => openComments(item.id)}
               >
                 <FaRegComment />
               </button>
@@ -631,10 +664,21 @@ function Home({ enableSeo = true }) {
       ) : null}
       {notifications ? (
         <div className="home-layout">
+          <button
+            className="home-notify-btn"
+            onClick={handleOpenNotifications}
+            type="button"
+          >
+            <IoMdNotificationsOutline />
+            {unreadCount ? (
+              <span className="home-notify-badge">
+                {Math.min(unreadCount, 9)}
+              </span>
+            ) : null}
+          </button>
           <div className="post-container home-feed">
             {followedPosts.length ? (
               <>
-                <div className="home-section-title">Kuzatayotganlaringiz</div>
                 {followedPosts.map((item, index) =>
                   renderPostItem(item, index, false),
                 )}
@@ -679,12 +723,40 @@ function Home({ enableSeo = true }) {
                         alt={item.fromUsername || "user"}
                       />
                       <div className="home-list__meta">
-                        <strong>{item.fromUsername || "user"}</strong>
-                        <span>
-                          {item.type === "like"
-                            ? "postingizni yoqtirdi"
-                            : "postingizga komment yozdi"}
-                        </span>
+                        <div className="home-notify-row">
+                          <div className="home-notify-text">
+                            <a href={item.fromUsername}>
+                              {" "}
+                              <strong>{item.fromUsername || "user"}</strong>
+                            </a>
+                            <span>
+                              {item.type === "like"
+                                ? "postingizni yoqtirdi"
+                                : "postingizga komment yozdi"}
+                            </span>
+                          </div>
+                          {item.postId ? (
+                            <button
+                              className="home-notify-thumb"
+                              onClick={() =>
+                                navigate(
+                                  `/post/${encodeURIComponent(item.postId)}`,
+                                )
+                              }
+                              type="button"
+                              aria-label="Postni ko‘rish"
+                            >
+                              {postThumbById.get(String(item.postId)) ? (
+                                <img
+                                  src={postThumbById.get(String(item.postId))}
+                                  alt="post"
+                                />
+                              ) : (
+                                <span className="home-notify-thumb-empty" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <em>
                         {item.createdAt
@@ -737,127 +809,95 @@ function Home({ enableSeo = true }) {
         </div>
       ) : null}
 
-      {commentsOpenFor ? (
-        <div
-          className="comment-modal-backdrop"
-          onClick={() => setCommentsOpenFor("")}
-        >
-          <div className="comment-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="comment-modal__header">
-              <span>Kommentlar</span>
+      {showNotifications ? (
+        <div className="home-notify-overlay">
+          <div className="home-notify-panel">
+            <div className="home-notify-header">
+              <span>Bildirishnomalar</span>
               <button
-                className="comment-modal__close"
-                onClick={() => setCommentsOpenFor("")}
+                className="home-notify-close"
+                onClick={() => setShowNotifications(false)}
+                type="button"
               >
-                <LiaTimesSolid />
+                &times;
               </button>
             </div>
-              <div className="comment-modal__list">
-                {(commentsByPost[commentsOpenFor] || []).length ? (
-                  (commentsByPost[commentsOpenFor] || []).map((comment) => (
-                    <div className="post-comment" key={comment._id}>
+            {notifications.length ? (
+              <div className="home-list">
+                {notifications.map((item) => (
+                  <div
+                    className={`home-list__item ${item.isRead ? "" : "unread"}`}
+                    key={item._id || item.id}
+                  >
                     <img
-                      src={comment.author?.profilePic || DEFAULT_AVATAR}
-                      alt={comment.author?.username || "user"}
+                      src={item.fromProfilePic || DEFAULT_AVATAR}
+                      alt={item.fromUsername || "user"}
                     />
-                      <div>
-                        <strong>
-                          {comment.author?.username || "foydalanuvchi"}
-                        </strong>
-                        <p>{comment.text}</p>
-                        {Number(comment.authorChatId) === Number(myChatId) ? (
+                    <div className="home-list__meta">
+                      <div className="home-notify-row">
+                        <div className="home-notify-text">
+                          <a href={item.fromUsername}>
+                            <strong>{item.fromUsername || "user"}</strong>
+                          </a>
+                          <span>
+                            {item.type === "like"
+                              ? "postingizni yoqtirdi"
+                              : "postingizga komment yozdi"}
+                          </span>
+                        </div>
+                        {item.postId ? (
                           <button
-                            className="comment-delete-btn"
-                            onClick={async () => {
-                              try {
-                                await deleteComment(
-                                  commentsOpenFor,
-                                  comment._id,
-                                );
-                                setCommentsByPost((prev) => ({
-                                  ...prev,
-                                  [commentsOpenFor]: (
-                                    prev[commentsOpenFor] || []
-                                  ).filter((item) => item._id !== comment._id),
-                                }));
-                              } catch (error) {
-                                notifyError(
-                                  error.message || "Komment o'chmadi",
-                                );
-                              }
+                            className="home-notify-thumb"
+                            onClick={() => {
+                              setShowNotifications(false);
+                              navigate(
+                                `/post/${encodeURIComponent(item.postId)}`,
+                              );
                             }}
+                            type="button"
+                            aria-label="Postni ko‘rish"
                           >
-                            O'chirish
+                            {postThumbById.get(String(item.postId)) ? (
+                              <img
+                                src={postThumbById.get(String(item.postId))}
+                                alt="post"
+                              />
+                            ) : (
+                              <span className="home-notify-thumb-empty" />
+                            )}
                           </button>
                         ) : null}
                       </div>
                     </div>
-                  ))
-              ) : (
-                <div className="post-comments__empty">Kommentlar yo'q</div>
-              )}
-            </div>
-            <div className="comment-modal__input">
-              <div className="post-comments__avatar">
-                <img src={DEFAULT_AVATAR} alt="me" />
+                    <em>
+                      {item.createdAt
+                        ? formatRelativeTimeUz(item.createdAt)
+                        : ""}
+                    </em>
+                  </div>
+                ))}
               </div>
-              <input
-                value={commentInputMap[commentsOpenFor] || ""}
-                placeholder="Komment yozing..."
-                onChange={(e) =>
-                  setCommentInputMap((prev) => ({
-                    ...prev,
-                    [commentsOpenFor]: e.target.value,
-                  }))
-                }
-              />
-              <button
-                disabled={
-                  !(commentInputMap[commentsOpenFor] || "").trim() ||
-                  commentLoadingMap[commentsOpenFor]
-                }
-                onClick={async () => {
-                  const text = (commentInputMap[commentsOpenFor] || "").trim();
-                  if (!text) return;
-                  setCommentLoadingMap((prev) => ({
-                    ...prev,
-                    [commentsOpenFor]: true,
-                  }));
-                  try {
-                    const created = await addComment(commentsOpenFor, text);
-                    setCommentsByPost((prev) => ({
-                      ...prev,
-                      [commentsOpenFor]: [
-                        ...(prev[commentsOpenFor] || []),
-                        {
-                          ...created,
-                          author: {
-                            username: myUsername || "Siz",
-                            profilePic: "",
-                          },
-                        },
-                      ],
-                    }));
-                    setCommentInputMap((prev) => ({
-                      ...prev,
-                      [commentsOpenFor]: "",
-                    }));
-                  } catch (error) {
-                    notifyError(error.message || "Komment qo'shilmadi");
-                  } finally {
-                    setCommentLoadingMap((prev) => ({
-                      ...prev,
-                      [commentsOpenFor]: false,
-                    }));
-                  }
-                }}
-              >
-                {commentLoadingMap[commentsOpenFor] ? "..." : "Yuborish"}
-              </button>
-            </div>
+            ) : (
+              <div className="home-empty-following">
+                Hozircha bildirishnoma yo'q
+              </div>
+            )}
           </div>
         </div>
       ) : null}
+
+      <CommentModal
+        openPostId={commentsOpenFor}
+        commentsByPost={commentsByPost}
+        commentInputMap={commentInputMap}
+        commentLoadingMap={commentLoadingMap}
+        onClose={closeComments}
+        onInputChange={setInput}
+        onSubmit={submitComment}
+        onDelete={removeComment}
+        myChatId={myChatId}
+        currentUser={{ username: myUsername || "Siz", profilePic: "" }}
+      />
     </>
   );
 }

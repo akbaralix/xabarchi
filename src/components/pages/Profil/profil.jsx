@@ -216,8 +216,6 @@ function Profil() {
       setDeletingId("");
     }
   };
-
-
   const handleView = useCallback(async (id) => {
     if (!id || viewedPostIdsRef.current.has(id)) return;
     const token = localStorage.getItem("UserToken");
@@ -320,20 +318,11 @@ function Profil() {
       return;
     }
 
-    const currentFirstName = String(user?.firstName || "").trim();
-    const currentBio = String(user?.bio || "").trim();
-    const nextBio = String(bio || "").trim();
-
-    if (normalizedFirstName === currentFirstName && nextBio === currentBio) {
-      setIsEditOpen(false);
-      return;
-    }
-
     setSavingBio(true);
     try {
       const updated = await updateUserProfile({
         firstName: normalizedFirstName,
-        bio: nextBio,
+        bio,
       });
       setUser(updated);
       setCurrentUser(updated);
@@ -483,15 +472,17 @@ function Profil() {
           {!isOwnProfile ? (
             <div className="profile-action-row">
               <button
-                className={`profile-follow-btn ${user.viewerIsFollowing ? "following" : ""} ${followLoading ? "loading" : ""}`}
+                className={`profile-follow-btn ${user.viewerIsFollowing ? "following" : ""}`}
                 onClick={handleFollowToggle}
                 disabled={followLoading}
               >
-                {followLoading
-                  ? "Yuklanmoqda..."
-                  : user.viewerIsFollowing
-                    ? "Kuzatilyapti"
-                    : "Kuzatish"}
+                {followLoading ? (
+                  <span className="follow-loading"></span>
+                ) : user.viewerIsFollowing ? (
+                  "Kuzatmaslik"
+                ) : (
+                  "Kuzatish"
+                )}
               </button>
               <button
                 className="profile-message-btn"

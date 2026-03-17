@@ -10,27 +10,19 @@ import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
 import { copyPostLink } from "../../services/postLink";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
-import { addComment, deleteComment, getComments } from "../../api/comments";
 import { getUser } from "../../services/User";
 import Seo from "../../seo/Seo";
+import CommentModal from "../../comments/CommentModal";
+import { useComments } from "../../comments/useComments";
+import { DEFAULT_AVATAR } from "../../services/defaults";
+import { getPostImages } from "../../services/postMedia";
 import "./reels.css";
 
-const DEFAULT_AVATAR = "/devault-avatar.jpg";
 const SWIPE_THRESHOLD = 50;
 const REEL_TRANSITION_MS = 320;
 
 const mapBackendPost = (item) => {
-  const images = Array.isArray(item.imageUrls)
-    ? item.imageUrls.filter(Boolean)
-    : Array.isArray(item.images)
-      ? item.images.filter(Boolean)
-      : [];
-  const fallbackImage = item.imageUrl || item.image || item.img;
-  const mergedImages = images.length
-    ? images
-    : fallbackImage
-      ? [fallbackImage]
-      : [];
+  const mergedImages = getPostImages(item);
 
   return {
     id: item._id || item.id,
@@ -60,10 +52,7 @@ function Reels() {
   const [menuPostId, setMenuPostId] = useState(null);
   const [menuMode, setMenuMode] = useState("root");
   const [myChatId, setMyChatId] = useState(null);
-  const [commentsOpenFor, setCommentsOpenFor] = useState("");
-  const [commentsByPost, setCommentsByPost] = useState({});
-  const [commentInputMap, setCommentInputMap] = useState({});
-  const [commentLoadingMap, setCommentLoadingMap] = useState({});
+  const [myUsername, setMyUsername] = useState("");
   const viewedPostIdsRef = useRef(new Set());
   const trackRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -71,6 +60,17 @@ function Reels() {
   const touchPostIdRef = useRef("");
   const lockTimeoutRef = useRef(null);
   const navigate = useNavigate();
+  const {
+    commentsOpenFor,
+    commentsByPost,
+    commentInputMap,
+    commentLoadingMap,
+    openComments,
+    closeComments,
+    setInput,
+    submitComment,
+    removeComment,
+  } = useComments({ myUsername, myChatId });
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +92,7 @@ function Reels() {
       const me = await getUser();
       if (!me || cancelled) return;
       setMyChatId(Number.isInteger(me.chatId) ? me.chatId : null);
+      setMyUsername(me.username || "");
     };
     loadMe();
     const refreshPosts = () => fetchData();
@@ -204,8 +205,8 @@ function Reels() {
   }, [menuPostId, closeMenu]);
 
   useEffect(() => {
-    setCommentsOpenFor("");
-  }, [activeIndex]);
+    closeComments();
+  }, [activeIndex, closeComments]);
 
   useEffect(() => {
     const currentPostId = posts[activeIndex]?.id;
@@ -460,20 +461,7 @@ function Reels() {
                 <button
                   className="reel-action-btn"
                   type="button"
-                  onClick={async () => {
-                    setCommentsOpenFor(item.id);
-                    if (!commentsByPost[item.id]) {
-                      try {
-                        const data = await getComments(item.id, 20);
-                        setCommentsByPost((prev) => ({
-                          ...prev,
-                          [item.id]: data,
-                        }));
-                      } catch (error) {
-                        notifyError(error.message || "Kommentlarni olishda xatolik");
-                      }
-                    }
-                  }}
+                  onClick={() => openComments(item.id)}
                 >
                   <FaRegComment />
                   <span>{(commentsByPost[item.id] || []).length}</span>
@@ -492,9 +480,7 @@ function Reels() {
             <div className="reel-menu-panel" role="dialog" aria-modal="true">
               <div className="reel-menu-header">
                 <span>
-                  {menuMode === "root"
-                    ? "Reel menyu"
-                    : "Shikoyat sababi"}
+                  {menuMode === "root" ? "Reel menyu" : "Shikoyat sababi"}
                 </span>
                 <button className="reel-menu-close" onClick={closeMenu}>
                   &times;
@@ -502,22 +488,22 @@ function Reels() {
               </div>
               {menuMode === "root" ? (
                 <>
-                <button
-                  className="reel-menu-item"
-                  onClick={() => handleDownloadImage(menuPostId)}
-                >
-                  Rasmni yuklab olish
-                </button>
-                <button
-                  className="reel-menu-item"
-                  onClick={() => handleCopyLink(menuPostId)}
-                >
-                  Post linkini nusxalash
-                </button>
-                <button
-                  className="reel-menu-item danger"
-                  onClick={() => setMenuMode("report")}
-                >
+                  <button
+                    className="reel-menu-item"
+                    onClick={() => handleDownloadImage(menuPostId)}
+                  >
+                    Rasmni yuklab olish
+                  </button>
+                  <button
+                    className="reel-menu-item"
+                    onClick={() => handleCopyLink(menuPostId)}
+                  >
+                    Post linkini nusxalash
+                  </button>
+                  <button
+                    className="reel-menu-item danger"
+                    onClick={() => setMenuMode("report")}
+                  >
                     Rasm haqida shikoyat qilish
                   </button>
                 </>
@@ -536,7 +522,8 @@ function Reels() {
                     className="reel-menu-item ghost"
                     onClick={() => setMenuMode("root")}
                   >
-                    Ortga
+                    <MdOutlineArrowBack />
+                    <span>Ortga</span>
                   </button>
                 </>
               )}
@@ -544,127 +531,18 @@ function Reels() {
           </>
         )}
 
-        {commentsOpenFor ? (
-          <div
-            className="comment-modal-backdrop"
-            onClick={() => setCommentsOpenFor("")}
-          >
-            <div className="comment-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="comment-modal__header">
-                <span>Kommentlar</span>
-                <button
-                  className="comment-modal__close"
-                  onClick={() => setCommentsOpenFor("")}
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="comment-modal__list">
-                {(commentsByPost[commentsOpenFor] || []).length ? (
-                  (commentsByPost[commentsOpenFor] || []).map((comment) => (
-                    <div className="post-comment" key={comment._id}>
-                      <img
-                        src={comment.author?.profilePic || DEFAULT_AVATAR}
-                        alt={comment.author?.username || "user"}
-                      />
-                    <div>
-                      <strong>
-                        {comment.author?.username || "foydalanuvchi"}
-                      </strong>
-                      <p>{comment.text}</p>
-                      {Number(comment.authorChatId) === Number(myChatId) ? (
-                        <button
-                          className="comment-delete-btn"
-                          onClick={async () => {
-                            try {
-                              await deleteComment(
-                                commentsOpenFor,
-                                comment._id,
-                              );
-                              setCommentsByPost((prev) => ({
-                                ...prev,
-                                [commentsOpenFor]: (
-                                  prev[commentsOpenFor] || []
-                                ).filter((item) => item._id !== comment._id),
-                              }));
-                            } catch (error) {
-                              notifyError(
-                                error.message || "Komment o'chmadi",
-                              );
-                            }
-                          }}
-                        >
-                          O'chirish
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                ))
-                ) : (
-                  <div className="post-comments__empty">Kommentlar yo'q</div>
-                )}
-              </div>
-              <div className="comment-modal__input">
-                <div className="post-comments__avatar">
-                  <img src={DEFAULT_AVATAR} alt="me" />
-                </div>
-                <input
-                  value={commentInputMap[commentsOpenFor] || ""}
-                  placeholder="Komment yozing..."
-                  onChange={(e) =>
-                    setCommentInputMap((prev) => ({
-                      ...prev,
-                      [commentsOpenFor]: e.target.value,
-                    }))
-                  }
-                />
-                <button
-                  disabled={
-                    !(commentInputMap[commentsOpenFor] || "").trim() ||
-                    commentLoadingMap[commentsOpenFor]
-                  }
-                  onClick={async () => {
-                    const text = (commentInputMap[commentsOpenFor] || "").trim();
-                    if (!text) return;
-                    setCommentLoadingMap((prev) => ({
-                      ...prev,
-                      [commentsOpenFor]: true,
-                    }));
-                    try {
-                      const created = await addComment(commentsOpenFor, text);
-                      setCommentsByPost((prev) => ({
-                        ...prev,
-                        [commentsOpenFor]: [
-                          ...(prev[commentsOpenFor] || []),
-                          {
-                            ...created,
-                            author: {
-                              username: "Siz",
-                              profilePic: "",
-                            },
-                          },
-                        ],
-                      }));
-                      setCommentInputMap((prev) => ({
-                        ...prev,
-                        [commentsOpenFor]: "",
-                      }));
-                    } catch (error) {
-                      notifyError(error.message || "Komment qo'shilmadi");
-                    } finally {
-                      setCommentLoadingMap((prev) => ({
-                        ...prev,
-                        [commentsOpenFor]: false,
-                      }));
-                    }
-                  }}
-                >
-                  {commentLoadingMap[commentsOpenFor] ? "..." : "Yuborish"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <CommentModal
+          openPostId={commentsOpenFor}
+          commentsByPost={commentsByPost}
+          commentInputMap={commentInputMap}
+          commentLoadingMap={commentLoadingMap}
+          onClose={closeComments}
+          onInputChange={setInput}
+          onSubmit={submitComment}
+          onDelete={removeComment}
+          myChatId={myChatId}
+          currentUser={{ username: myUsername || "Siz", profilePic: "" }}
+        />
       </section>
     </>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BsEye, BsHeart, BsHeartFill } from "react-icons/bs";
+import { FaRegComment } from "react-icons/fa";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -7,24 +8,17 @@ import { getPostById } from "../../api/posts";
 import { markPostView, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
 import { notifyError } from "../../../utils/feedback";
+import { getUser } from "../../services/User";
+import CommentModal from "../../comments/CommentModal";
+import { useComments } from "../../comments/useComments";
+import { DEFAULT_AVATAR } from "../../services/defaults";
+import { getPostImages } from "../../services/postMedia";
 import Seo from "../../seo/Seo";
 import "../Home/home.css";
 
-const DEFAULT_AVATAR = "/devault-avatar.jpg";
-
 const mapBackendPost = (item) => {
   if (!item) return null;
-  const images = Array.isArray(item.imageUrls)
-    ? item.imageUrls.filter(Boolean)
-    : Array.isArray(item.images)
-      ? item.images.filter(Boolean)
-      : [];
-  const fallbackImage = item.imageUrl || item.image || item.img;
-  const mergedImages = images.length
-    ? images
-    : fallbackImage
-      ? [fallbackImage]
-      : [];
+  const mergedImages = getPostImages(item);
 
   return {
     id: item._id || item.id,
@@ -45,10 +39,23 @@ function Post() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [myUsername, setMyUsername] = useState("");
+  const [myChatId, setMyChatId] = useState(null);
   const viewedRef = useRef(false);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const navigate = useNavigate();
+  const {
+    commentsOpenFor,
+    commentsByPost,
+    commentInputMap,
+    commentLoadingMap,
+    openComments,
+    closeComments,
+    setInput,
+    submitComment,
+    removeComment,
+  } = useComments({ myUsername, myChatId });
 
   useEffect(() => {
     let active = true;
@@ -64,6 +71,22 @@ function Post() {
       active = false;
     };
   }, [postId]);
+
+  useEffect(() => {
+    let active = true;
+    const token = localStorage.getItem("UserToken");
+    if (!token) return () => {};
+    const loadMe = async () => {
+      const me = await getUser();
+      if (!me || !active) return;
+      setMyUsername(me.username || "");
+      setMyChatId(Number.isInteger(me.chatId) ? me.chatId : null);
+    };
+    loadMe();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleLike = async () => {
     if (!post) return;
@@ -218,7 +241,8 @@ function Post() {
 
               <div className="post-bottom">
                 <div className="user-post_actions">
-                  <div className="like-actions">
+                  <div className="post-actions-left">
+                    <div className="like-actions">
                     <button
                       onClick={handleLike}
                       className={`like-button ${post.liked ? "liked" : ""}`}
@@ -226,6 +250,16 @@ function Post() {
                       {post.liked ? <BsHeartFill color="red" /> : <BsHeart />}
                     </button>
                     <span className="post-like">{formatNumber(post.like)}</span>
+                    </div>
+                    <button
+                      className={`comment-toggle ${
+                        commentsOpenFor === post.id ? "active" : ""
+                      }`}
+                      onClick={() => openComments(post.id)}
+                    >
+                      <FaRegComment />
+                    </button>
+                    <span>{(commentsByPost[post.id] || []).length}</span>
                   </div>
                   <span className="post-views__count" title="Ko'rishlar">
                     <BsEye /> {formatNumber(post.views)}
@@ -243,6 +277,18 @@ function Post() {
           )}
         </div>
       </section>
+      <CommentModal
+        openPostId={commentsOpenFor}
+        commentsByPost={commentsByPost}
+        commentInputMap={commentInputMap}
+        commentLoadingMap={commentLoadingMap}
+        onClose={closeComments}
+        onInputChange={setInput}
+        onSubmit={submitComment}
+        onDelete={removeComment}
+        myChatId={myChatId}
+        currentUser={{ username: myUsername || "Siz", profilePic: "" }}
+      />
     </>
   );
 }

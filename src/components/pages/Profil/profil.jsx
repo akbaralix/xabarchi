@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BsCamera, BsEye, BsHeart } from "react-icons/bs";
-import { FaPen } from "react-icons/fa";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import { FiTrash2 } from "react-icons/fi";
 import { LiaTimesSolid } from "react-icons/lia";
 
@@ -16,6 +16,8 @@ import {
   followUserByUsername,
   getUser,
   getUserByUsername,
+  getFollowersByUsername,
+  getFollowingByUsername,
   getUserPostsByUsername,
   unfollowUserByUsername,
   updateUserProfile,
@@ -85,6 +87,16 @@ function Profil() {
   const [expandedBio, setExpandedBio] = useState(false);
   const [postImageIndexes, setPostImageIndexes] = useState({});
   const [followLoading, setFollowLoading] = useState(false);
+  const [followModal, setFollowModal] = useState({
+    open: false,
+    tab: "followers",
+  });
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [followListLoading, setFollowListLoading] = useState(false);
+  const [status, setStatus] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [statusFly, setStatusFly] = useState(null);
 
   const handleShowProfilePic = () => {
     setShowProfilePic(true);
@@ -92,6 +104,14 @@ function Profil() {
 
   const handleCloseProfilePic = () => {
     setShowProfilePic(false);
+  };
+
+  const openFollowModal = (tab) => {
+    setFollowModal({ open: true, tab });
+  };
+
+  const closeFollowModal = () => {
+    setFollowModal((prev) => ({ ...prev, open: false }));
   };
   const handleOpenPostImage = (imageUrl, item) => {
     if (!imageUrl) return;
@@ -109,6 +129,7 @@ function Profil() {
   const viewedPostIdsRef = useRef(new Set());
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
+  const statusButtonRef = useRef(null);
   const navigate = useNavigate();
 
   const isOwnProfile =
@@ -195,6 +216,38 @@ function Profil() {
       })
       .finally(() => setLoading(false));
   }, [user, isOwnProfile, targetUsername]);
+
+  useEffect(() => {
+    setFollowers([]);
+    setFollowing([]);
+  }, [user?.username]);
+
+  useEffect(() => {
+    if (!followModal.open || !user?.username) return;
+    const load = async () => {
+      setFollowListLoading(true);
+      try {
+        if (followModal.tab === "followers") {
+          if (followers.length) return;
+          const data = await getFollowersByUsername(user.username, 200);
+          setFollowers(data);
+        } else {
+          if (following.length) return;
+          const data = await getFollowingByUsername(user.username, 200);
+          setFollowing(data);
+        }
+      } finally {
+        setFollowListLoading(false);
+      }
+    };
+    load();
+  }, [
+    followModal.open,
+    followModal.tab,
+    user?.username,
+    followers.length,
+    following.length,
+  ]);
 
   const handleDelete = async (postId) => {
     if (!isOwnProfile) return;
@@ -318,11 +371,19 @@ function Profil() {
       return;
     }
 
+    const currentFirstName = String(user?.firstName || "").trim();
+    const currentBio = String(user?.bio || "").trim();
+    const nextBio = String(bio || "").trim();
+    if (normalizedFirstName === currentFirstName && nextBio === currentBio) {
+      setIsEditOpen(false);
+      return;
+    }
+
     setSavingBio(true);
     try {
       const updated = await updateUserProfile({
         firstName: normalizedFirstName,
-        bio,
+        bio: nextBio,
       });
       setUser(updated);
       setCurrentUser(updated);
@@ -423,17 +484,72 @@ function Profil() {
       ? `${bioText.slice(0, BIO_PREVIEW_LIMIT)}...`
       : bioText;
 
+  const handleShowStatus = () => {
+    setStatus(true);
+  };
+  const handleSetMyStatus = (item) => {
+    setSelectedStatus(item);
+    setStatus(false);
+  };
+  const handleSetMyStatusAnimated = (item, event) => {
+    const startRect = event.currentTarget.getBoundingClientRect();
+    const endRect = statusButtonRef.current?.getBoundingClientRect();
+    if (endRect) {
+      const startX = startRect.left + startRect.width / 2;
+      const startY = startRect.top + startRect.height / 2;
+      const endX = endRect.left + endRect.width / 2;
+      const endY = endRect.top + endRect.height / 2;
+      setStatusFly({
+        emoji: item,
+        x: startX,
+        y: startY,
+        dx: endX - startX,
+        dy: endY - startY,
+      });
+      setTimeout(() => setStatusFly(null), 420);
+    }
+    handleSetMyStatus(item);
+  };
+  const statusPannel = () => {
+    const status = ["😂", "😉", "😏", "😍", "🫠", "☹️", "😴"];
+
+    return (
+      <div className="status-pannel">
+        <div className="status-row">
+          {status.map((item, index) => (
+            <div className="status-sticker" key={index}>
+              <button onClick={(e) => handleSetMyStatusAnimated(item, e)}>
+                {item}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
   return (
     <>
       <Seo title={`${profileName}`} description={profileDescription} />
       <div className="profil-wrapper">
         <div className="profil-container">
           <div className="profile-top">
-            <div className="pofilePic" onClick={handleShowProfilePic}>
-              <img
-                src={user.profilePic || DEFAULT_AVATAR}
-                alt={user.username}
-              />
+            <div className="main-profile-pic">
+              <div className="pofilePic" onClick={handleShowProfilePic}>
+                <img
+                  src={user.profilePic || DEFAULT_AVATAR}
+                  alt={user.username}
+                />
+              </div>
+              <div className="add-my-status">
+                <button
+                  className="add-my-status-btn"
+                  onClick={handleShowStatus}
+                  ref={statusButtonRef}
+                >
+                  <span>{selectedStatus || "➕"}</span>
+                </button>
+                {status ? statusPannel() : null}
+              </div>
             </div>
             <div className="userActions">
               <div className="userName">
@@ -443,18 +559,26 @@ function Profil() {
                 <p>{user.firstName || user.username || "Foydalanuvchi"}</p>
               </div>
               <div className="post-actions">
-                <div>
+                <div className="profile-stat profile-stat--static">
                   <strong>{posts.length}</strong>
                   <span>post</span>
                 </div>
-                <div>
+                <button
+                  type="button"
+                  className="profile-stat"
+                  onClick={() => openFollowModal("followers")}
+                >
                   <strong>{Number(user.followersCount || 0)}</strong>
                   <span>kuzatuvchi</span>
-                </div>
-                <div>
+                </button>
+                <button
+                  type="button"
+                  className="profile-stat"
+                  onClick={() => openFollowModal("following")}
+                >
                   <strong>{Number(user.followingCount || 0)}</strong>
                   <span>kuzatmoqda</span>
-                </div>
+                </button>
               </div>
               {isOwnProfile ? (
                 <button
@@ -464,7 +588,7 @@ function Profil() {
                     isEditOpen ? "Tahrirlashni yopish" : "Profilni tahrirlash"
                   }
                 >
-                  {isEditOpen ? <LiaTimesSolid /> : <FaPen />}
+                  {isEditOpen ? <LiaTimesSolid /> : <BsThreeDotsVertical />}
                 </button>
               ) : null}
             </div>
@@ -690,6 +814,109 @@ function Profil() {
               </div>
             </div>
           </div>
+        ) : null}
+        {followModal.open ? (
+          <div className="follow-modal-backdrop" onClick={closeFollowModal}>
+            <div
+              className="follow-modal"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="follow-modal__header">
+                <span>{user.username || "profil"}</span>
+                <button
+                  type="button"
+                  className="follow-modal__close"
+                  onClick={closeFollowModal}
+                >
+                  <LiaTimesSolid />
+                </button>
+              </div>
+              <div className="follow-modal__tabs">
+                <button
+                  type="button"
+                  className={followModal.tab === "followers" ? "active" : ""}
+                  onClick={() => openFollowModal("followers")}
+                >
+                  Kuzatuvchi
+                </button>
+                <button
+                  type="button"
+                  className={followModal.tab === "following" ? "active" : ""}
+                  onClick={() => openFollowModal("following")}
+                >
+                  Kuzatmoqda
+                </button>
+              </div>
+              <div className="follow-modal__list">
+                {followListLoading ? (
+                  <div className="follow-modal__loading">Yuklanmoqda...</div>
+                ) : followModal.tab === "followers" ? (
+                  followers.length ? (
+                    followers.map((item) => (
+                      <button
+                        key={item.chatId || item.username}
+                        className="follow-modal__item"
+                        onClick={() => {
+                          closeFollowModal();
+                          navigate(
+                            `/${encodeURIComponent(item.username || "")}`,
+                          );
+                        }}
+                      >
+                        <img
+                          src={item.profilePic || DEFAULT_AVATAR}
+                          alt={item.username || "user"}
+                        />
+                        <div>
+                          <strong>{item.username || "foydalanuvchi"}</strong>
+                          <span>{item.firstName || ""}</span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="follow-modal__empty">Kuzatuvchi yo'q</div>
+                  )
+                ) : following.length ? (
+                  following.map((item) => (
+                    <button
+                      key={item.chatId || item.username}
+                      className="follow-modal__item"
+                      onClick={() => {
+                        closeFollowModal();
+                        navigate(`/${encodeURIComponent(item.username || "")}`);
+                      }}
+                    >
+                      <img
+                        src={item.profilePic || DEFAULT_AVATAR}
+                        alt={item.username || "user"}
+                      />
+                      <div>
+                        <strong>{item.username || "foydalanuvchi"}</strong>
+                        <span>{item.firstName || ""}</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="follow-modal__empty">
+                    Hozircha hechkim yo'q
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {statusFly ? (
+          <span
+            className="status-fly"
+            style={{
+              left: `${statusFly.x}px`,
+              top: `${statusFly.y}px`,
+              "--dx": `${statusFly.dx}px`,
+              "--dy": `${statusFly.dy}px`,
+            }}
+          >
+            {statusFly.emoji}
+          </span>
         ) : null}
       </div>
     </>

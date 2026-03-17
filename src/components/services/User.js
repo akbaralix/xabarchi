@@ -202,3 +202,41 @@ export const getUserPostsByUsername = async (username) => {
   setCached(cacheKey, normalizedData, 5 * 60_000);
   return normalizedData;
 };
+
+const mapFollowList = (data) =>
+  Array.isArray(data)
+    ? data.map((item) => ({
+        ...item,
+        profilePic: normalizeImageUrl(item?.profilePic),
+      }))
+    : [];
+
+export const getFollowersByUsername = async (username, limit = 50) => {
+  const normalized = String(username || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return [];
+
+  const response = await fetch(
+    `${API_BASE}/profile/${encodeURIComponent(normalized)}/followers?limit=${limit}`,
+  );
+  if (!response.ok) return [];
+  const data = await response.json().catch(() => []);
+  return mapFollowList(data);
+};
+
+export const getFollowingByUsername = async (username, limit = 50) => {
+  const normalized = String(username || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
+  if (!normalized) return [];
+
+  const response = await fetch(
+    `${API_BASE}/profile/${encodeURIComponent(normalized)}/following?limit=${limit}`,
+  );
+  if (!response.ok) return [];
+  const data = await response.json().catch(() => []);
+  return mapFollowList(data);
+};

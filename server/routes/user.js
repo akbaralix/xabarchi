@@ -202,6 +202,69 @@ userRouter.get("/profile/:username", optionalVerifyToken, async (req, res) => {
   }
 });
 
+const mapFollowUser = (user) => ({
+  chatId: user.chatId,
+  username: user.username || null,
+  firstName: user.firstName || "",
+  profilePic: user.profilePic || "",
+});
+
+const getFollowList = async (req, res, type) => {
+  try {
+    const username = String(req.params.username || "")
+      .trim()
+      .toLowerCase();
+
+    if (!username) {
+      return res.status(400).json({ message: "username talab qilinadi." });
+    }
+
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+
+    const user = await User.findOne({ username }).select(
+      "chatId followerChatIds followingChatIds",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+    }
+
+    const ids =
+      type === "followers"
+        ? Array.isArray(user.followerChatIds)
+          ? user.followerChatIds
+          : []
+        : Array.isArray(user.followingChatIds)
+          ? user.followingChatIds
+          : [];
+
+    const limited = ids.slice(0, limit);
+    if (!limited.length) return res.json([]);
+
+    const users = await User.find({ chatId: { $in: limited } })
+      .select("chatId username firstName profilePic")
+      .lean();
+    const userMap = new Map(users.map((item) => [item.chatId, item]));
+
+    const ordered = limited
+      .map((id) => userMap.get(id))
+      .filter(Boolean)
+      .map(mapFollowUser);
+
+    return res.json(ordered);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Ro'yxatni olishda xatolik" });
+  }
+};
+
+userRouter.get("/profile/:username/followers", (req, res) =>
+  getFollowList(req, res, "followers"),
+);
+
+userRouter.get("/profile/:username/following", (req, res) =>
+  getFollowList(req, res, "following"),
+);
+
 userRouter.post("/profile/:username/follow", verifyToken, async (req, res) => {
   try {
     const username = String(req.params.username || "")

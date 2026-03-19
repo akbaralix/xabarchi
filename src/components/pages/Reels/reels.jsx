@@ -10,7 +10,7 @@ import { markPostView, reportPost, toggleLike } from "../../api/postActions";
 import { formatNumber } from "../../services/formatNumber";
 import { copyPostLink } from "../../services/postLink";
 import { notifyError, notifyInfo } from "../../../utils/feedback";
-import { getUser } from "../../services/User";
+import { followUserByUsername, getUser } from "../../services/User";
 import Seo from "../../seo/Seo";
 import CommentModal from "../../comments/CommentModal";
 import { useComments } from "../../comments/useComments";
@@ -20,12 +20,18 @@ import "./reels.css";
 
 const SWIPE_THRESHOLD = 50;
 const REEL_TRANSITION_MS = 320;
+const normalizeUsername = (value) =>
+  String(value || "")
+    .replace(/^@/, "")
+    .trim()
+    .toLowerCase();
 
 const mapBackendPost = (item) => {
   const mergedImages = getPostImages(item);
 
   return {
     id: item._id || item.id,
+    authorChatId: Number(item.authorChatId || 0),
     userName: item.userName || item.UserName || "Siz",
     profilePic: item.profilePic || DEFAULT_AVATAR,
     images: mergedImages,
@@ -53,6 +59,8 @@ function Reels() {
   const [menuMode, setMenuMode] = useState("root");
   const [myChatId, setMyChatId] = useState(null);
   const [myUsername, setMyUsername] = useState("");
+  const [followingUsernames, setFollowingUsernames] = useState(new Set());
+  const [followLoadingMap, setFollowLoadingMap] = useState({});
   const viewedPostIdsRef = useRef(new Set());
   const trackRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -92,7 +100,24 @@ function Reels() {
       const me = await getUser();
       if (!me || cancelled) return;
       setMyChatId(Number.isInteger(me.chatId) ? me.chatId : null);
-      setMyUsername(me.username || "");
+      setMyUsername(normalizeUsername(me.username));
+      const following = Array.isArray(me.followingChatIds)
+        ? me.followingChatIds
+        : [];
+      const postsData = await getPosts();
+      if (!Array.isArray(postsData) || cancelled) return;
+      const mapped = postsData.map(mapBackendPost);
+      const chatIdToUsername = new Map(
+        mapped
+          .map((item) => [Number(item.authorChatId), normalizeUsername(item.userName)])
+          .filter(([chatId, username]) => Number.isInteger(chatId) && username),
+      );
+      const nextSet = new Set();
+      following.forEach((chatId) => {
+        const username = chatIdToUsername.get(Number(chatId));
+        if (username) nextSet.add(username);
+      });
+      setFollowingUsernames(nextSet);
     };
     loadMe();
     const refreshPosts = () => fetchData();
@@ -278,6 +303,31 @@ function Reels() {
     }
   };
 
+  const handleFollowFromReel = async (userName) => {
+    const normalized = normalizeUsername(userName);
+    if (!normalized) return;
+    const token = localStorage.getItem("UserToken");
+    if (!token) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (followLoadingMap[normalized]) return;
+
+    setFollowLoadingMap((prev) => ({ ...prev, [normalized]: true }));
+    try {
+      await followUserByUsername(normalized);
+      setFollowingUsernames((prev) => {
+        const next = new Set(prev);
+        next.add(normalized);
+        return next;
+      });
+    } catch (error) {
+      notifyError(error.message || "Kuzatishda xatolik");
+    } finally {
+      setFollowLoadingMap((prev) => ({ ...prev, [normalized]: false }));
+    }
+  };
+
   const handleTouchStart = (event) => {
     touchStartRef.current = {
       x: event.touches[0]?.clientX || 0,
@@ -377,6 +427,16 @@ function Reels() {
         >
           {posts.map((item) => (
             <article key={item.id} className="reel-card" data-post-id={item.id}>
+              {(() => {
+                const normalizedUser = normalizeUsername(item.userName);
+                const canFollow =
+                  Boolean(normalizedUser) &&
+                  normalizedUser !== myUsername &&
+                  !followingUsernames.has(normalizedUser);
+                const followLoading = Boolean(followLoadingMap[normalizedUser]);
+
+                return (
+                  <>
               <div className="reel-header">
                 <button
                   onClick={() => {
@@ -433,6 +493,16 @@ function Reels() {
                   >
                     {item.userName}
                   </button>
+                  {canFollow ? (
+                    <button
+                      className="reel-follow-btn"
+                      type="button"
+                      onClick={() => handleFollowFromReel(item.userName)}
+                      disabled={followLoading}
+                    >
+                      {followLoading ? "..." : "kuzatish"}
+                    </button>
+                  ) : null}
                 </div>
                 {item.caption ? (
                   <button
@@ -471,6 +541,9 @@ function Reels() {
                   <span>{formatNumber(item.views)}</span>
                 </div>
               </div>
+                  </>
+                );
+              })()}
             </article>
           ))}
         </div>

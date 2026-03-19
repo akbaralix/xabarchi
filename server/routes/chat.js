@@ -22,6 +22,8 @@ const mapMessage = (message, sender) => ({
   ciphertext: message.ciphertext || "",
   nonce: message.nonce || "",
   e2e: Boolean(message.e2e),
+  senderPublicKey: message.senderPublicKey || sender?.e2ePublicKey || "",
+  recipientPublicKey: message.recipientPublicKey || "",
   senderChatId: message.senderChatId,
   readByChatIds: Array.isArray(message.readByChatIds)
     ? message.readByChatIds
@@ -200,7 +202,18 @@ chatRouter.get("/chats/:conversationId/messages", verifyToken, async (req, res) 
 
     const ordered = messages.reverse();
     return res.json(
-      ordered.map((item) => mapMessage(item, userMap.get(item.senderChatId))),
+      ordered.map((item) => {
+        const sender = userMap.get(item.senderChatId);
+        const recipientChatId = (conversation.participants || []).find(
+          (chatId) => Number(chatId) !== Number(item.senderChatId),
+        );
+        const recipient = userMap.get(recipientChatId);
+        return {
+          ...mapMessage(item, sender),
+          recipientPublicKey:
+            item.recipientPublicKey || recipient?.e2ePublicKey || "",
+        };
+      }),
     );
   } catch (err) {
     console.log(err);
@@ -230,6 +243,29 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
       return res.status(404).json({ message: "Chat topilmadi" });
     }
 
+    let senderPublicKey = "";
+    let recipientPublicKey = "";
+    if (isEncrypted) {
+      const participantIds = Array.isArray(conversation.participants)
+        ? conversation.participants
+        : [];
+      const recipientChatId = participantIds.find(
+        (chatId) => Number(chatId) !== Number(req.user.chatId),
+      );
+      const participants = await User.find({
+        chatId: { $in: [req.user.chatId, recipientChatId].filter(Boolean) },
+      })
+        .select("chatId e2ePublicKey")
+        .lean();
+      const participantMap = new Map(
+        participants.map((item) => [Number(item.chatId), item]),
+      );
+      senderPublicKey =
+        participantMap.get(Number(req.user.chatId))?.e2ePublicKey || "";
+      recipientPublicKey =
+        participantMap.get(Number(recipientChatId))?.e2ePublicKey || "";
+    }
+
     const created = await Message.create({
       conversationId: conversation._id,
       senderChatId: req.user.chatId,
@@ -237,6 +273,8 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
       ciphertext: isEncrypted ? ciphertext : "",
       nonce: isEncrypted ? nonce : "",
       e2e: isEncrypted,
+      senderPublicKey: isEncrypted ? senderPublicKey : "",
+      recipientPublicKey: isEncrypted ? recipientPublicKey : "",
       readByChatIds: [req.user.chatId],
     });
 

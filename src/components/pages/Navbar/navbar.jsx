@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FaHome,
   FaCamera,
@@ -13,7 +13,10 @@ import "./navbar.css";
 
 function Navbar() {
   const [create, setCreate] = useState(false);
+  const [shareProgress, setShareProgress] = useState(0);
+  const [isSharing, setIsSharing] = useState(false);
   const location = useLocation();
+  const progressIntervalRef = useRef(null);
   const adminChatId = 907402803;
   const parseJwt = (token) => {
     if (!token) return null;
@@ -40,8 +43,58 @@ function Navbar() {
     setCreate(true);
   };
 
+  const stopProgressInterval = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
+
+  const handleShareStart = () => {
+    stopProgressInterval();
+    setCreate(false);
+    setIsSharing(true);
+    setShareProgress(0);
+
+    progressIntervalRef.current = setInterval(() => {
+      setShareProgress((prev) => (prev >= 92 ? prev : prev + 1));
+    }, 120);
+  };
+
+  const handleShareProgress = (progress) => {
+    setShareProgress((prev) => Math.max(prev, progress));
+  };
+
+  const handleShareComplete = () => {
+    stopProgressInterval();
+    setShareProgress(100);
+    window.setTimeout(() => {
+      setIsSharing(false);
+      setShareProgress(0);
+    }, 450);
+  };
+
+  const handleShareError = () => {
+    stopProgressInterval();
+    setIsSharing(false);
+    setShareProgress(0);
+  };
+
+  useEffect(() => {
+    return () => stopProgressInterval();
+  }, []);
+
   return (
     <div>
+      {isSharing && (
+        <div className="share-progress" aria-live="polite" aria-label="Post yuklanmoqda">
+          <div
+            className="share-progress__bar"
+            style={{ width: `${shareProgress}%` }}
+          />
+          <span className="share-progress__label">{shareProgress}%</span>
+        </div>
+      )}
       <div className="navbar">
         <ul>
           <li>
@@ -101,7 +154,15 @@ function Navbar() {
           ) : null}
         </ul>
       </div>
-      {create && <Create setCreate={setCreate} />}
+      {create && (
+        <Create
+          setCreate={setCreate}
+          onShareStart={handleShareStart}
+          onShareProgress={handleShareProgress}
+          onShareComplete={handleShareComplete}
+          onShareError={handleShareError}
+        />
+      )}
     </div>
   );
 }

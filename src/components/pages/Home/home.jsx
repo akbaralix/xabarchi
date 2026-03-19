@@ -709,69 +709,6 @@ function Home({ enableSeo = true }) {
           </div>
 
           <aside className="home-sidebar">
-            <div className="home-card">
-              <div className="home-card__title">Bildirishnomalar</div>
-              {notifications.length ? (
-                <div className="home-list">
-                  {notifications.map((item) => (
-                    <div
-                      className={`home-list__item ${item.isRead ? "" : "unread"}`}
-                      key={item._id || item.id}
-                    >
-                      <img
-                        src={item.fromProfilePic || DEFAULT_AVATAR}
-                        alt={item.fromUsername || "user"}
-                      />
-                      <div className="home-list__meta">
-                        <div className="home-notify-row">
-                          <div className="home-notify-text">
-                            <a href={item.fromUsername}>
-                              {" "}
-                              <strong>{item.fromUsername || "user"}</strong>
-                            </a>
-                            <span>
-                              {item.type === "like"
-                                ? "postingizni yoqtirdi"
-                                : "postingizga komment yozdi"}
-                            </span>
-                          </div>
-                          {item.postId ? (
-                            <button
-                              className="home-notify-thumb"
-                              onClick={() =>
-                                navigate(
-                                  `/post/${encodeURIComponent(item.postId)}`,
-                                )
-                              }
-                              type="button"
-                              aria-label="Postni ko‘rish"
-                            >
-                              {postThumbById.get(String(item.postId)) ? (
-                                <img
-                                  src={postThumbById.get(String(item.postId))}
-                                  alt="post"
-                                />
-                              ) : (
-                                <span className="home-notify-thumb-empty" />
-                              )}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <em>
-                        {item.createdAt
-                          ? formatRelativeTimeUz(item.createdAt)
-                          : ""}
-                      </em>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="home-empty-following">
-                  Hozircha bildirishnoma yo'q
-                </div>
-              )}
-            </div>
 
             <div className="home-card">
               <div className="home-card__title">Siz uchun tavsiya</div>

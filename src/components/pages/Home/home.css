@@ -460,19 +460,20 @@
 
 .home-notify-btn {
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: 16px;
+  right: 20px;
   width: 44px;
   height: 44px;
   border-radius: 12px;
   border: 1px solid #1f2430;
   background: #0f1116;
   color: #e6e9f1;
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   z-index: 1300;
   cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
 }
 
 .home-notify-btn svg {
@@ -542,7 +543,8 @@
   }
 
   .home-notify-btn {
-    display: inline-flex;
+    right: auto;
+    left: 12px;
   }
 }
 @media screen and (max-width: 750px) {

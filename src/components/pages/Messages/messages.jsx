@@ -37,6 +37,9 @@ const getUiCacheKey = () =>
 const getPreviewCacheKey = () =>
   `chat:preview:${localStorage.getItem("UserToken") || "guest"}`;
 
+const getMessageTextCacheKey = () =>
+  `chat:text:${localStorage.getItem("UserToken") || "guest"}`;
+
 const readPreviewCache = () => {
   try {
     const raw = localStorage.getItem(getPreviewCacheKey());
@@ -59,6 +62,42 @@ const removePreviewCache = (conversationId) => {
   const cache = readPreviewCache();
   delete cache[String(conversationId)];
   localStorage.setItem(getPreviewCacheKey(), JSON.stringify(cache));
+};
+
+const readMessageTextCache = () => {
+  try {
+    const raw = localStorage.getItem(getMessageTextCacheKey());
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const getMessageTextFingerprint = (item) => {
+  if (!item || typeof item !== "object") return "";
+  if (item._id) return `id:${String(item._id)}`;
+  if (item.clientMessageId) return `client:${String(item.clientMessageId)}`;
+  if (item.conversationId && item.ciphertext) {
+    return `cipher:${String(item.conversationId)}:${String(item.ciphertext)}`;
+  }
+  return "";
+};
+
+const writeMessageTextCache = (item, textValue) => {
+  const fingerprint = getMessageTextFingerprint(item);
+  const text = String(textValue || "");
+  if (!fingerprint || !text) return;
+  const cache = readMessageTextCache();
+  cache[fingerprint] = text;
+  localStorage.setItem(getMessageTextCacheKey(), JSON.stringify(cache));
+};
+
+const readMessageText = (item) => {
+  const fingerprint = getMessageTextFingerprint(item);
+  if (!fingerprint) return "";
+  const cache = readMessageTextCache();
+  return String(cache[fingerprint] || "");
 };
 
 const readUiCache = () => {
@@ -218,24 +257,38 @@ function Messages() {
 
   const prepareMessage = (item, peerPublicKey) => {
     if (!item || !item.e2e || !item.ciphertext || !item.nonce) return item;
+    const cachedText = readMessageText(item);
     const keyPair = getStoredKeyPair();
-    if (!keyPair || !peerPublicKey) {
+    const messagePeerKey =
+      item.senderChatId === meChatIdRef.current
+        ? item.recipientPublicKey || peerPublicKey
+        : item.senderPublicKey || item.sender?.e2ePublicKey || peerPublicKey;
+
+    if (!keyPair || !messagePeerKey) {
       return {
         ...item,
-        text: item.text || "Shifrlangan xabar",
+        text: cachedText || item.text || "Shifrlangan xabar",
       };
     }
 
     const plain = decryptText(
       item.ciphertext,
       item.nonce,
-      peerPublicKey,
+      messagePeerKey,
       keyPair.secretKey,
     );
 
+    if (plain) {
+      writeMessageTextCache(item, plain);
+    }
+
     return {
       ...item,
-      text: plain || "Shifrlangan xabarni ochib bo'lmadi",
+      text:
+        plain ||
+        cachedText ||
+        item.text ||
+        "Shifrlangan xabarni ochib bo'lmadi",
     };
   };
 
@@ -865,6 +918,7 @@ function Messages() {
       readByChatIds: [meChatIdRef.current],
     };
 
+    writeMessageTextCache(tempMessage, content);
     setMessages((prev) => [...prev, tempMessage]);
     setText("");
     writePreviewCache(selectedConversationId, content);
@@ -899,6 +953,7 @@ function Messages() {
         },
         peerPublicKey,
       );
+      writeMessageTextCache(preparedSent, preparedSent.text || content);
       setMessages((prev) =>
         prev
           .map((item) =>

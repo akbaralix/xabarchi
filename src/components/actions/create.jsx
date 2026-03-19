@@ -18,7 +18,7 @@ import "./create.css";
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://xabarchi.onrender.com";
 
-function Create({ setCreate }) {
+function Create({ setCreate, onShareStart, onShareProgress, onShareComplete, onShareError }) {
   const [selectedImages, setSelectedImages] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -111,9 +111,18 @@ function Create({ setCreate }) {
     }
 
     setUploading(true);
+    setCreate(false);
+    onShareStart?.();
 
     try {
-      const uploaded = await Promise.all(selectedImages.map((item) => uploadImage(item)));
+      const uploaded = await Promise.all(
+        selectedImages.map(async (item, index) => {
+          const result = await uploadImage(item);
+          const progress = Math.round(((index + 1) / selectedImages.length) * 90);
+          onShareProgress?.(progress);
+          return result;
+        }),
+      );
       const imageUrls = uploaded.filter(Boolean);
       if (imageUrls.length !== selectedImages.length) {
         throw new Error("Rasm Supabase'ga yuklanmadi");
@@ -137,6 +146,8 @@ function Create({ setCreate }) {
         throw new Error(data.message || "Serverga yuborishda xatolik");
       }
 
+      onShareProgress?.(100);
+      onShareComplete?.();
       notifySuccess("Post muvaffaqiyatli yuklandi");
       invalidateCache("posts:");
       window.dispatchEvent(new Event("post-created"));
@@ -145,11 +156,11 @@ function Create({ setCreate }) {
       setPreviewUrls([]);
       setPreviewIndex(0);
       setCaption("");
-      setCreate(false);
     } catch (error) {
       console.error("Upload error:", error);
       const msg = error.message || "Xatolik yuz berdi, qayta urinib ko'ring!";
       setErrorMsg(msg);
+      onShareError?.();
       notifyError(msg);
     } finally {
       setUploading(false);

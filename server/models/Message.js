@@ -13,6 +13,8 @@ const messageSchema = new mongoose.Schema(
     ciphertext: { type: String, trim: true, default: "" },
     nonce: { type: String, trim: true, default: "" },
     e2e: { type: Boolean, default: false },
+    senderPublicKey: { type: String, trim: true, default: "" },
+    recipientPublicKey: { type: String, trim: true, default: "" },
     readByChatIds: { type: [Number], default: [] },
   },
   { timestamps: true },

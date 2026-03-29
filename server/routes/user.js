@@ -21,7 +21,9 @@ const getFollowSummary = (user, viewerChatId) => {
     followersCount: followerChatIds.length,
     followingCount: followingChatIds.length,
     viewerIsFollowing:
-      typeof viewerChatId === "number" ? followerChatIds.includes(viewerChatId) : false,
+      typeof viewerChatId === "number"
+        ? followerChatIds.includes(viewerChatId)
+        : false,
   };
 };
 
@@ -53,7 +55,7 @@ const normalizeE2EPublicKey = (value) => {
 userRouter.get("/me", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ chatId: req.user.chatId }).select(
-      "firstName chatId username profilePic bio followerChatIds followingChatIds e2ePublicKey",
+      "firstName chatId username profilePic bio statusEmoji followerChatIds followingChatIds e2ePublicKey",
     );
 
     if (!user)
@@ -74,9 +76,7 @@ userRouter.patch("/me/e2e-key", verifyToken, async (req, res) => {
   try {
     const normalized = normalizeE2EPublicKey(req.body?.publicKey);
     if (!normalized) {
-      return res
-        .status(400)
-        .json({ message: "publicKey noto'g'ri formatda" });
+      return res.status(400).json({ message: "publicKey noto'g'ri formatda" });
     }
 
     const updated = await User.findOneAndUpdate(
@@ -111,14 +111,23 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
     const rawFirstName =
       typeof req.body?.firstName === "string" ? req.body.firstName : undefined;
     const rawProfilePic =
-      typeof req.body?.profilePic === "string" ? req.body.profilePic : undefined;
+      typeof req.body?.profilePic === "string"
+        ? req.body.profilePic
+        : undefined;
+    const rawStatusEmoji =
+      typeof req.body?.statusEmoji === "string"
+        ? req.body.statusEmoji
+        : undefined;
 
     if (
       rawBio === undefined &&
       rawProfilePic === undefined &&
-      rawFirstName === undefined
+      rawFirstName === undefined &&
+      rawStatusEmoji === undefined
     ) {
-      return res.status(400).json({ message: "bio, firstName yoki profilePic yuboring." });
+      return res
+        .status(400)
+        .json({ message: "bio, firstName, profilePic yoki statusEmoji yuboring." });
     }
 
     const updates = {};
@@ -134,7 +143,9 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
     if (rawFirstName !== undefined) {
       const firstName = rawFirstName.trim();
       if (!firstName) {
-        return res.status(400).json({ message: "Ism bo'sh bo'lmasligi kerak." });
+        return res
+          .status(400)
+          .json({ message: "Ism bo'sh bo'lmasligi kerak." });
       }
       if (firstName.length > 120) {
         return res.status(400).json({ message: "Ism 120 belgidan oshmasin." });
@@ -150,6 +161,10 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
       updates.profilePic = profilePic;
     }
 
+    if (rawStatusEmoji !== undefined) {
+      updates.statusEmoji = rawStatusEmoji.trim();
+    }
+
     const updated = await User.findOneAndUpdate(
       { chatId: req.user.chatId },
       { $set: updates },
@@ -157,7 +172,7 @@ userRouter.patch("/me/profile", verifyToken, async (req, res) => {
         new: true,
         runValidators: true,
       },
-    ).select("firstName chatId username profilePic bio");
+    ).select("firstName chatId username profilePic bio statusEmoji");
 
     if (!updated) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
@@ -181,7 +196,7 @@ userRouter.get("/profile/:username", optionalVerifyToken, async (req, res) => {
     }
 
     const user = await User.findOne({ username }).select(
-      "firstName chatId username profilePic bio followerChatIds followingChatIds",
+      "firstName chatId username profilePic bio statusEmoji followerChatIds followingChatIds",
     );
     if (!user) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
@@ -318,58 +333,64 @@ userRouter.post("/profile/:username/follow", verifyToken, async (req, res) => {
   }
 });
 
-userRouter.delete("/profile/:username/follow", verifyToken, async (req, res) => {
-  try {
-    const username = String(req.params.username || "")
-      .trim()
-      .toLowerCase();
+userRouter.delete(
+  "/profile/:username/follow",
+  verifyToken,
+  async (req, res) => {
+    try {
+      const username = String(req.params.username || "")
+        .trim()
+        .toLowerCase();
 
-    if (!username) {
-      return res.status(400).json({ message: "username talab qilinadi." });
+      if (!username) {
+        return res.status(400).json({ message: "username talab qilinadi." });
+      }
+
+      const me = await User.findOne({ chatId: req.user.chatId }).select(
+        "chatId username followingChatIds",
+      );
+      if (!me) {
+        return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+      }
+
+      const target = await User.findOne({ username }).select(
+        "chatId username followerChatIds followingChatIds",
+      );
+      if (!target) {
+        return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
+      }
+
+      if (target.chatId === me.chatId) {
+        return res.status(400).json({ message: "O'zingizni kuzata olmaysiz." });
+      }
+
+      await User.updateOne(
+        { chatId: me.chatId },
+        { $pull: { followingChatIds: target.chatId } },
+      );
+      const updatedTarget = await User.findOneAndUpdate(
+        { chatId: target.chatId },
+        { $pull: { followerChatIds: me.chatId } },
+        { new: true },
+      ).select("followerChatIds followingChatIds");
+
+      return res.json({
+        following: false,
+        followersCount: Array.isArray(updatedTarget?.followerChatIds)
+          ? updatedTarget.followerChatIds.length
+          : 0,
+        followingCount: Array.isArray(updatedTarget?.followingChatIds)
+          ? updatedTarget.followingChatIds.length
+          : 0,
+      });
+    } catch (err) {
+      console.log(err);
+      return res
+        .status(500)
+        .json({ message: "Kuzatishni bekor qilishda xatolik!" });
     }
-
-    const me = await User.findOne({ chatId: req.user.chatId }).select(
-      "chatId username followingChatIds",
-    );
-    if (!me) {
-      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
-    }
-
-    const target = await User.findOne({ username }).select(
-      "chatId username followerChatIds followingChatIds",
-    );
-    if (!target) {
-      return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });
-    }
-
-    if (target.chatId === me.chatId) {
-      return res.status(400).json({ message: "O'zingizni kuzata olmaysiz." });
-    }
-
-    await User.updateOne(
-      { chatId: me.chatId },
-      { $pull: { followingChatIds: target.chatId } },
-    );
-    const updatedTarget = await User.findOneAndUpdate(
-      { chatId: target.chatId },
-      { $pull: { followerChatIds: me.chatId } },
-      { new: true },
-    ).select("followerChatIds followingChatIds");
-
-    return res.json({
-      following: false,
-      followersCount: Array.isArray(updatedTarget?.followerChatIds)
-        ? updatedTarget.followerChatIds.length
-        : 0,
-      followingCount: Array.isArray(updatedTarget?.followingChatIds)
-        ? updatedTarget.followingChatIds.length
-        : 0,
-    });
-  } catch (err) {
-    console.log(err);
-    return res.status(500).json({ message: "Kuzatishni bekor qilishda xatolik!" });
-  }
-});
+  },
+);
 
 userRouter.get("/profile/:username/posts", async (req, res) => {
   try {
@@ -426,7 +447,7 @@ userRouter.get("/user/:chatId", verifyToken, async (req, res) => {
     }
 
     const user = await User.findOne({ chatId: requestedChatId }).select(
-      "firstName chatId username profilePic bio",
+      "firstName chatId username profilePic bio statusEmoji",
     );
     if (!user) {
       return res.status(404).json({ message: "Foydalanuvchi topilmadi!" });

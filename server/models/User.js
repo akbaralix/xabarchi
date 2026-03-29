@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, trim: true, maxlength: 300, default: "" },
     followerChatIds: { type: [Number], default: [] },
     followingChatIds: { type: [Number], default: [] },
+    statusEmoji: { type: String, trim: true, default: "" },
     passwordHash: { type: String },
     passwordSalt: { type: String },
     googleId: { type: String, unique: true, sparse: true, trim: true },

@@ -199,6 +199,39 @@
   gap: 10px;
 }
 
+.chat-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-call-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #1f8bff;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+
+.chat-call-btn:hover {
+  transform: translateY(-1px);
+  background: #40a2ff;
+}
+
+.chat-call-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .chat-back-btn {
   display: none;
   border: none;
@@ -371,6 +404,186 @@
   color: #dde1ea;
 }
 
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background:
+    radial-gradient(circle at top, rgba(39, 114, 255, 0.28), transparent 32%),
+    linear-gradient(180deg, rgba(11, 20, 41, 0.98), rgba(4, 8, 19, 0.98));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.call-overlay.video {
+  background: #05070b;
+}
+
+.call-video-stage {
+  position: absolute;
+  inset: 0;
+  background: #020409;
+}
+
+.call-remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #020409;
+}
+
+.call-local-video {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: min(28vw, 180px);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #0b1020;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.call-overlay__content {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 440px);
+  padding: 28px 22px;
+  border-radius: 28px;
+  text-align: center;
+  color: #fff;
+  background: rgba(15, 20, 32, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+}
+
+.call-overlay.video .call-overlay__content {
+  margin-top: auto;
+  margin-bottom: 28px;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 16, 0.14),
+    rgba(8, 10, 16, 0.72)
+  );
+}
+
+.call-avatar-wrap {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.3);
+}
+
+.call-overlay__content strong {
+  display: block;
+  font-size: 28px;
+  font-family: "poppins", sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.call-overlay__content p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  font-family: "poppins", sans-serif;
+}
+
+.call-audio-wave {
+  margin: 18px auto 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  height: 28px;
+}
+
+.call-audio-wave span {
+  width: 6px;
+  border-radius: 999px;
+  background: #5fd1ff;
+  animation: callWave 0.9s ease-in-out infinite;
+}
+
+.call-audio-wave span:nth-child(1) {
+  height: 12px;
+}
+
+.call-audio-wave span:nth-child(2) {
+  height: 22px;
+  animation-delay: 0.12s;
+}
+
+.call-audio-wave span:nth-child(3) {
+  height: 16px;
+  animation-delay: 0.24s;
+}
+
+.call-controls {
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.call-control {
+  width: 64px;
+  height: 64px;
+  border: none;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+
+.call-control:hover {
+  transform: translateY(-2px);
+}
+
+.call-control.accept {
+  background: #33b864;
+}
+
+.call-control.end {
+  background: #e04444;
+}
+
+.call-control.secondary {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.call-control.secondary.off {
+  background: rgba(224, 68, 68, 0.24);
+}
+
+@keyframes callWave {
+  0%,
+  100% {
+    transform: scaleY(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scaleY(1.25);
+    opacity: 1;
+  }
+}
+
 @keyframes chatSheetUp {
   from {
     opacity: 0;
@@ -409,5 +622,28 @@
 
   .chat-back-btn {
     display: inline-flex;
+  }
+
+  .call-local-video {
+    width: 120px;
+    top: 16px;
+    right: 16px;
+    border-radius: 16px;
+  }
+
+  .call-overlay__content {
+    width: calc(100vw - 28px);
+    padding: 24px 18px;
+    margin-bottom: 18px;
+  }
+
+  .call-overlay__content strong {
+    font-size: 24px;
+  }
+
+  .call-control {
+    width: 58px;
+    height: 58px;
+    font-size: 24px;
   }
 }

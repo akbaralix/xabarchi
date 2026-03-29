@@ -29,6 +29,7 @@ import "./profil.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 const BIO_PREVIEW_LIMIT = 100;
+const STATUS_EMOJIS = ["😂", "😉", "😏", "😍", "🫠", "☹️", "😴"];
 
 const normalizeUsername = (value) =>
   decodeURIComponent(String(value || ""))
@@ -169,6 +170,7 @@ function Profil() {
         }
         if (!active) return;
         setUser(me);
+        setSelectedStatus(me.statusEmoji || "");
         setBio(me.bio || "");
         setFirstName(me.firstName || "");
         setLoading(false);
@@ -187,6 +189,7 @@ function Profil() {
       }
 
       setUser(profile);
+      setSelectedStatus(profile.statusEmoji || "");
       setBio(profile.bio || "");
       setFirstName(profile.firstName || "");
       setLoading(false);
@@ -487,9 +490,19 @@ function Profil() {
   const handleShowStatus = () => {
     setStatus(true);
   };
-  const handleSetMyStatus = (item) => {
+  const handleSetMyStatus = async (item) => {
     setSelectedStatus(item);
     setStatus(false);
+
+    try {
+      const updated = await updateUserProfile({ statusEmoji: item });
+      setUser(updated);
+      setCurrentUser(updated);
+      setSelectedStatus(updated.statusEmoji || "");
+      notifySuccess("Status yangilandi");
+    } catch (err) {
+      notifyError(err.message || "Statusni o'zgartirishda xatolik");
+    }
   };
   const handleSetMyStatusAnimated = (item, event) => {
     const startRect = event.currentTarget.getBoundingClientRect();
@@ -511,12 +524,12 @@ function Profil() {
     handleSetMyStatus(item);
   };
   const statusPannel = () => {
-    const status = ["😂", "😉", "😏", "😍", "🫠", "☹️", "😴"];
+    const status = STATUS_EMOJIS;
 
     return (
       <div className="status-pannel">
         <div className="status-row">
-          {status.map((item, index) => (
+          {STATUS_EMOJIS.map((item, index) => (
             <div className="status-sticker" key={index}>
               <button onClick={(e) => handleSetMyStatusAnimated(item, e)}>
                 {item}
@@ -540,16 +553,18 @@ function Profil() {
                   alt={user.username}
                 />
               </div>
-              <div className="add-my-status">
-                <button
-                  className="add-my-status-btn"
-                  onClick={handleShowStatus}
-                  ref={statusButtonRef}
-                >
-                  <span>{selectedStatus || "➕"}</span>
-                </button>
-                {status ? statusPannel() : null}
-              </div>
+              {isOwnProfile ? (
+                <div className="add-my-status">
+                  <button
+                    className="add-my-status-btn"
+                    onClick={handleShowStatus}
+                    ref={statusButtonRef}
+                  >
+                    <span>{selectedStatus || "+"}</span>
+                  </button>
+                  {status ? statusPannel() : null}
+                </div>
+              ) : null}
             </div>
             <div className="userActions">
               <div className="userName">

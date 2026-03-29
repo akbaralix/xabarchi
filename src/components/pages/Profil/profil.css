@@ -130,10 +130,7 @@ img {
     transform: translate(-50%, -50%) scale(1);
   }
   to {
-    transform: translate(
-        calc(-50% + var(--dx)),
-        calc(-50% + var(--dy))
-      )
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
       scale(0.7);
   }
 }
@@ -255,7 +252,7 @@ img {
 .profile-follow-btn {
   height: 40px;
   margin-top: 0;
-  border: 1px solid #2a2e37;
+  border: none;
   background: #2e6aff;
   color: #fff;
   border-radius: 10px;

@@ -269,7 +269,9 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
     const created = await Message.create({
       conversationId: conversation._id,
       senderChatId: req.user.chatId,
-      text: isEncrypted ? "" : text,
+      // Telegram-style cloud sync: always keep the readable message body
+      // so the same account can open chats on another device as well.
+      text,
       ciphertext: isEncrypted ? ciphertext : "",
       nonce: isEncrypted ? nonce : "",
       e2e: isEncrypted,
@@ -282,7 +284,7 @@ chatRouter.post("/chats/:conversationId/messages", verifyToken, async (req, res)
       { _id: conversation._id },
       {
         $set: {
-          lastMessage: isEncrypted ? "Shifrlangan xabar" : text,
+          lastMessage: text || (isEncrypted ? "Shifrlangan xabar" : ""),
           lastMessageAt: created.createdAt,
         },
       },
@@ -350,9 +352,7 @@ chatRouter.delete(
         .select("text createdAt e2e")
         .lean();
 
-      const lastMessage = latest?.e2e
-        ? "Shifrlangan xabar"
-        : latest?.text || "";
+      const lastMessage = latest?.text || (latest?.e2e ? "Shifrlangan xabar" : "");
       const lastMessageAt = latest?.createdAt || conversation.createdAt;
 
       await Conversation.updateOne(

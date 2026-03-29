@@ -2,6 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { BsSearch, BsArrowLeft, BsCheck, BsCheckAll } from "react-icons/bs";
 import { IoSend } from "react-icons/io5";
+import {
+  MdCall,
+  MdVideocam,
+  MdCallEnd,
+  MdMic,
+  MdMicOff,
+  MdVideocamOff,
+  MdPhoneDisabled,
+} from "react-icons/md";
 
 import { useSearchParams } from "react-router-dom";
 import { getUser, setE2EPublicKey } from "../../services/User";
@@ -30,6 +39,22 @@ import "./messages.css";
 
 const DEFAULT_AVATAR = "/devault-avatar.jpg";
 const UI_CACHE_TTL = 5 * 60_000;
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+  ],
+};
+const INITIAL_CALL_STATE = {
+  phase: "idle",
+  callId: "",
+  conversationId: "",
+  mode: "audio",
+  direction: "outgoing",
+  muted: false,
+  cameraEnabled: true,
+  startedAt: null,
+  peerUser: null,
+};
 
 const getUiCacheKey = () =>
   `chat:ui:${localStorage.getItem("UserToken") || "guest"}`;
@@ -119,6 +144,13 @@ const isMobileScreen = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(max-width: 900px)").matches;
 
+const formatCallDuration = (seconds) => {
+  const total = Math.max(0, Number(seconds || 0));
+  const mins = String(Math.floor(total / 60)).padStart(2, "0");
+  const secs = String(total % 60).padStart(2, "0");
+  return `${mins}:${secs}`;
+};
+
 function Messages() {
   const initialUiState = readUiCache();
 
@@ -146,7 +178,8 @@ function Messages() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [socketReconnecting, setSocketReconnecting] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
-  const [e2eReady, setE2EReady] = useState(false);
+  const [callState, setCallState] = useState(INITIAL_CALL_STATE);
+  const [callDuration, setCallDuration] = useState(0);
   const [searchParams] = useSearchParams();
 
   const socketRef = useRef(null);
@@ -159,13 +192,18 @@ function Messages() {
   );
   const conversationsRef = useRef([]);
   const messagesRequestIdRef = useRef(0);
-  const pendingPlainTextRef = useRef("");
-  const pendingConversationIdRef = useRef("");
   const conversationLongPressTimerRef = useRef(null);
   const conversationLongPressTriggeredRef = useRef(false);
   const messageLongPressTimerRef = useRef(null);
   const stopTypingTimerRef = useRef(null);
   const typingHideTimerRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
+  const callStateRef = useRef(INITIAL_CALL_STATE);
 
   const selectedConversation = useMemo(
     () =>
@@ -225,6 +263,151 @@ function Messages() {
   }, [me]);
 
   useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  const getConversationById = (conversationId) =>
+    conversationsRef.current.find(
+      (item) => String(item._id) === String(conversationId),
+    ) || null;
+
+  const getCallPeerUser = (conversationId, fallbackUser = null) =>
+    getConversationById(conversationId)?.otherUser || fallbackUser || null;
+
+  const syncMediaElements = () => {
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current || null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStreamRef.current || null;
+    }
+  };
+
+  const resetCallUi = () => {
+    setCallState(INITIAL_CALL_STATE);
+    setCallDuration(0);
+  };
+
+  const teardownCallMedia = () => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.onicecandidate = null;
+      peerConnectionRef.current.ontrack = null;
+      peerConnectionRef.current.onconnectionstatechange = null;
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteStreamRef.current = null;
+    }
+
+    pendingIceCandidatesRef.current = [];
+    syncMediaElements();
+  };
+
+  const finishCallLocally = () => {
+    teardownCallMedia();
+    resetCallUi();
+  };
+
+  const flushPendingCandidates = async () => {
+    const pc = peerConnectionRef.current;
+    if (!pc || !pc.remoteDescription) return;
+
+    while (pendingIceCandidatesRef.current.length) {
+      const candidate = pendingIceCandidatesRef.current.shift();
+      if (!candidate) continue;
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch (error) {
+        console.error("ICE candidate qo'shilmadi:", error);
+      }
+    }
+  };
+
+  const createPeerConnection = (callId) => {
+    if (peerConnectionRef.current) return peerConnectionRef.current;
+
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const remoteStream = new MediaStream();
+    remoteStreamRef.current = remoteStream;
+
+    const localStream = localStreamRef.current;
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream);
+      });
+    }
+
+    pc.ontrack = (event) => {
+      event.streams.forEach((stream) => {
+        stream.getTracks().forEach((track) => {
+          remoteStream.addTrack(track);
+        });
+      });
+      syncMediaElements();
+    };
+
+    pc.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      socketRef.current?.emit("call:signal", {
+        callId,
+        candidate: event.candidate.toJSON(),
+      });
+    };
+
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      if (state === "connected") {
+        setCallState((prev) => ({
+          ...prev,
+          phase: "active",
+          startedAt: prev.startedAt || Date.now(),
+        }));
+      }
+
+      if (["failed", "disconnected", "closed"].includes(state)) {
+        finishCallLocally();
+      }
+    };
+
+    peerConnectionRef.current = pc;
+    syncMediaElements();
+    return pc;
+  };
+
+  const ensureLocalStream = async (mode) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Brauzer qo'ng'iroqni qo'llab-quvvatlamaydi");
+    }
+
+    if (localStreamRef.current) {
+      return localStreamRef.current;
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video:
+        mode === "video"
+          ? {
+              facingMode: "user",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            }
+          : false,
+    });
+    localStreamRef.current = stream;
+    syncMediaElements();
+    return stream;
+  };
+
+  useEffect(() => {
     if (!me) return;
     let active = true;
 
@@ -232,7 +415,6 @@ function Messages() {
       try {
         const keyPair = ensureKeyPair();
         if (!active) return;
-        setE2EReady(true);
         if (keyPair?.publicKey && keyPair.publicKey !== me?.e2ePublicKey) {
           await setE2EPublicKey(keyPair.publicKey);
         }
@@ -247,6 +429,30 @@ function Messages() {
       active = false;
     };
   }, [me]);
+
+  useEffect(() => {
+    syncMediaElements();
+  }, [callState.phase]);
+
+  useEffect(() => {
+    if (callState.phase !== "active" || !callState.startedAt) {
+      setCallDuration(0);
+      return undefined;
+    }
+
+    const tick = () => {
+      setCallDuration(
+        Math.max(
+          0,
+          Math.floor((Date.now() - Number(callState.startedAt)) / 1000),
+        ),
+      );
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [callState.phase, callState.startedAt]);
 
   const getPeerPublicKey = (conversationId) => {
     const current = conversationsRef.current.find(
@@ -267,7 +473,7 @@ function Messages() {
     if (!keyPair || !messagePeerKey) {
       return {
         ...item,
-        text: cachedText || item.text || "Shifrlangan xabar",
+        text: cachedText || item.text || "Xabar bu qurilmada mavjud emas",
       };
     }
 
@@ -288,7 +494,7 @@ function Messages() {
         plain ||
         cachedText ||
         item.text ||
-        "Shifrlangan xabarni ochib bo'lmadi",
+        "Xabar bu qurilmada mavjud emas",
     };
   };
 
@@ -544,6 +750,143 @@ function Messages() {
       }
     });
 
+    socket.on("call:ringing", (payload) => {
+      const peerUser = getCallPeerUser(
+        payload?.conversationId,
+        callStateRef.current.peerUser,
+      );
+      setCallState((prev) => ({
+        ...prev,
+        phase: "ringing",
+        callId: String(payload?.callId || prev.callId || ""),
+        conversationId: String(payload?.conversationId || prev.conversationId || ""),
+        mode: payload?.mode === "video" ? "video" : prev.mode,
+        peerUser,
+      }));
+    });
+
+    socket.on("call:incoming", (payload) => {
+      if (callStateRef.current.phase !== "idle") {
+        socket.emit("call:decline", {
+          callId: payload?.callId,
+          reason: "busy",
+        });
+        return;
+      }
+
+      const peerUser = getCallPeerUser(payload?.conversationId, payload?.fromUser);
+      setCallDuration(0);
+      setCallState({
+        phase: "incoming",
+        callId: String(payload?.callId || ""),
+        conversationId: String(payload?.conversationId || ""),
+        mode: payload?.mode === "video" ? "video" : "audio",
+        direction: "incoming",
+        muted: false,
+        cameraEnabled: payload?.mode === "video",
+        startedAt: null,
+        peerUser,
+      });
+    });
+
+    socket.on("call:accepted", async (payload) => {
+      const currentCall = callStateRef.current;
+      const callId = String(payload?.callId || "");
+      if (!callId || (currentCall.callId && callId !== currentCall.callId)) return;
+
+      setCallState((prev) => ({
+        ...prev,
+        callId,
+        conversationId: String(payload?.conversationId || prev.conversationId || ""),
+        phase: "connecting",
+      }));
+
+      if (currentCall.direction !== "outgoing") {
+        return;
+      }
+
+      try {
+        await ensureLocalStream(currentCall.mode);
+        const pc = createPeerConnection(callId);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("call:signal", {
+          callId,
+          description: pc.localDescription,
+        });
+      } catch (error) {
+        console.error("Qo'ng'iroq offer xatoligi:", error);
+        notifyError("Qo'ng'iroqni ulashda xatolik");
+        socket.emit("call:end", {
+          callId,
+          reason: "setup-error",
+        });
+        finishCallLocally();
+      }
+    });
+
+    socket.on("call:signal", async (payload) => {
+      const currentCall = callStateRef.current;
+      const callId = String(payload?.callId || "");
+      if (!callId || callId !== currentCall.callId) return;
+
+      try {
+        const pc = createPeerConnection(callId);
+
+        if (payload?.description) {
+          const description = new RTCSessionDescription(payload.description);
+          await pc.setRemoteDescription(description);
+          await flushPendingCandidates();
+
+          if (description.type === "offer") {
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit("call:signal", {
+              callId,
+              description: pc.localDescription,
+            });
+          }
+        }
+
+        if (payload?.candidate) {
+          const candidate = new RTCIceCandidate(payload.candidate);
+          if (pc.remoteDescription?.type) {
+            await pc.addIceCandidate(candidate);
+          } else {
+            pendingIceCandidatesRef.current.push(candidate);
+          }
+        }
+      } catch (error) {
+        console.error("Qo'ng'iroq signal xatoligi:", error);
+      }
+    });
+
+    socket.on("call:declined", (payload) => {
+      const currentCall = callStateRef.current;
+      const callId = String(payload?.callId || "");
+      if (!callId || (currentCall.callId && callId !== currentCall.callId)) return;
+
+      const reasonMap = {
+        busy: "Foydalanuvchi band",
+        declined: "Qo'ng'iroq rad etildi",
+        "media-error": "Qurilma ruxsati berilmadi",
+      };
+      notifyError(reasonMap[payload?.reason] || "Qo'ng'iroq yakunlandi");
+      finishCallLocally();
+    });
+
+    socket.on("call:ended", (payload) => {
+      const currentCall = callStateRef.current;
+      const callId = String(payload?.callId || "");
+      if (!callId || (currentCall.callId && callId !== currentCall.callId)) return;
+      finishCallLocally();
+    });
+
+    socket.on("call:error", (payload) => {
+      notifyError(payload?.message || "Qo'ng'iroqda xatolik");
+      finishCallLocally();
+    });
+
     return () => {
       active = false;
       if (stopTypingTimerRef.current) {
@@ -552,6 +895,7 @@ function Messages() {
       if (typingHideTimerRef.current) {
         clearTimeout(typingHideTimerRef.current);
       }
+      teardownCallMedia();
       socket.disconnect();
     };
   }, []);
@@ -571,8 +915,7 @@ function Messages() {
         ) {
           return;
         }
-        const peerPublicKey =
-          selectedConversation?.otherUser?.e2ePublicKey || "";
+        const peerPublicKey = getPeerPublicKey(selectedConversationId);
         const prepared = Array.isArray(data)
           ? data.map((item) => prepareMessage(item, peerPublicKey))
           : [];
@@ -652,6 +995,117 @@ function Messages() {
       });
   }, [searchParams]);
 
+  const startCall = async (mode) => {
+    if (!selectedConversationId || !selectedConversation?.otherUser?.chatId) {
+      notifyError("Avval chatni tanlang");
+      return;
+    }
+
+    if (callStateRef.current.phase !== "idle") {
+      notifyError("Hozir boshqa qo'ng'iroq davom etmoqda");
+      return;
+    }
+
+    try {
+      await ensureLocalStream(mode);
+      setCallDuration(0);
+      setCallState({
+        phase: "dialing",
+        callId: "",
+        conversationId: String(selectedConversationId),
+        mode,
+        direction: "outgoing",
+        muted: false,
+        cameraEnabled: mode === "video",
+        startedAt: null,
+        peerUser: selectedConversation.otherUser || null,
+      });
+      socketRef.current?.emit("call:start", {
+        conversationId: selectedConversationId,
+        mode,
+      });
+    } catch (error) {
+      teardownCallMedia();
+      resetCallUi();
+      notifyError(error.message || "Qo'ng'iroqni boshlashda xatolik");
+    }
+  };
+
+  const acceptIncomingCall = async () => {
+    const currentCall = callStateRef.current;
+    if (currentCall.phase !== "incoming" || !currentCall.callId) return;
+
+    try {
+      await ensureLocalStream(currentCall.mode);
+      if (currentCall.conversationId) {
+        setSelectedConversationId(currentCall.conversationId);
+      }
+      setCallState((prev) => ({
+        ...prev,
+        phase: "connecting",
+        muted: false,
+        cameraEnabled: prev.mode === "video",
+      }));
+      socketRef.current?.emit("call:accept", {
+        callId: currentCall.callId,
+      });
+    } catch (error) {
+      notifyError(error.message || "Qo'ng'iroqni qabul qilib bo'lmadi");
+      socketRef.current?.emit("call:decline", {
+        callId: currentCall.callId,
+        reason: "media-error",
+      });
+      finishCallLocally();
+    }
+  };
+
+  const declineIncomingCall = () => {
+    const currentCall = callStateRef.current;
+    if (!currentCall.callId) return;
+    socketRef.current?.emit("call:decline", {
+      callId: currentCall.callId,
+      reason: "declined",
+    });
+    finishCallLocally();
+  };
+
+  const endActiveCall = () => {
+    const currentCall = callStateRef.current;
+    if (!currentCall.callId) {
+      finishCallLocally();
+      return;
+    }
+    socketRef.current?.emit("call:end", {
+      callId: currentCall.callId,
+      reason: "ended",
+    });
+    finishCallLocally();
+  };
+
+  const toggleMute = () => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const nextMuted = !callStateRef.current.muted;
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = !nextMuted;
+    });
+    setCallState((prev) => ({ ...prev, muted: nextMuted }));
+  };
+
+  const toggleCamera = async () => {
+    const currentCall = callStateRef.current;
+    if (currentCall.mode !== "video") return;
+
+    const nextEnabled = !currentCall.cameraEnabled;
+    const localStream = localStreamRef.current;
+    if (!localStream) return;
+
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = nextEnabled;
+    });
+    setCallState((prev) => ({ ...prev, cameraEnabled: nextEnabled }));
+  };
+
   const handleStartConversation = async () => {
     const username = startUsername.trim().toLowerCase().replace(/^@/, "");
     if (!username) return;
@@ -724,18 +1178,6 @@ function Messages() {
 
   const handleConfirmDelete = async () => {
     if (!confirmAction) return;
-
-    if (confirmAction.type === "send-plain") {
-      const plainText = pendingPlainTextRef.current;
-      const conversationId = pendingConversationIdRef.current;
-      pendingPlainTextRef.current = "";
-      pendingConversationIdRef.current = "";
-      setConfirmAction(null);
-      if (plainText && conversationId) {
-        await sendPlainMessage(plainText, conversationId);
-      }
-      return;
-    }
 
     if (confirmAction.type === "conversation") {
       try {
@@ -876,23 +1318,13 @@ function Messages() {
 
     const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
     const keyPair = getStoredKeyPair() || ensureKeyPair();
+    const encrypted =
+      peerPublicKey && keyPair?.secretKey
+        ? encryptText(content, peerPublicKey, keyPair.secretKey)
+        : null;
 
-    if (!peerPublicKey || !keyPair?.secretKey || !e2eReady) {
-      pendingPlainTextRef.current = content;
-      pendingConversationIdRef.current = selectedConversationId;
-      setConfirmAction({
-        type: "send-plain",
-        title: "E2E kalit yo'q",
-        description:
-          "Bu foydalanuvchida E2E kalit yo'q. Xabar shifrlanmay yuboriladi. Davom etasizmi?",
-        confirmLabel: "Shifrlamasdan yuborish",
-      });
-      return;
-    }
-
-    const encrypted = encryptText(content, peerPublicKey, keyPair.secretKey);
     if (!encrypted) {
-      notifyError("Xabarni shifrlashda xatolik");
+      await sendPlainMessage(content, selectedConversationId);
       return;
     }
 
@@ -909,9 +1341,9 @@ function Messages() {
       _id: clientMessageId,
       conversationId: selectedConversationId,
       text: content,
-      ciphertext: encrypted.ciphertext,
-      nonce: encrypted.nonce,
-      e2e: true,
+      ciphertext: encrypted?.ciphertext || "",
+      nonce: encrypted?.nonce || "",
+      e2e: Boolean(encrypted),
       senderChatId: meChatIdRef.current,
       createdAt: new Date().toISOString(),
       clientMessageId,
@@ -940,9 +1372,14 @@ function Messages() {
       const sent = await sendMessage(
         selectedConversationId,
         {
-          ciphertext: encrypted.ciphertext,
-          nonce: encrypted.nonce,
-          e2e: true,
+          text: content,
+          ...(encrypted
+            ? {
+                ciphertext: encrypted.ciphertext,
+                nonce: encrypted.nonce,
+                e2e: true,
+              }
+            : {}),
         },
         clientMessageId,
       );
@@ -1010,6 +1447,20 @@ function Messages() {
 
   const peerPublicKey = selectedConversation?.otherUser?.e2ePublicKey || "";
   const canSend = Boolean(text.trim());
+  const callPeerName =
+    callState.peerUser?.username ||
+    callState.peerUser?.firstName ||
+    "Foydalanuvchi";
+  const callStatusText =
+    callState.phase === "incoming"
+      ? `${callState.mode === "video" ? "Video" : "Ovozli"} qo'ng'iroq kiryapti`
+      : callState.phase === "dialing" || callState.phase === "ringing"
+        ? "Chaqirilmoqda..."
+        : callState.phase === "connecting"
+          ? "Ulanmoqda..."
+          : callState.phase === "active"
+            ? formatCallDuration(callDuration)
+            : "";
 
   return (
     <>
@@ -1124,12 +1575,32 @@ function Messages() {
                           : "offline"}
                   </p>
                 </div>
+                <div className="chat-header-actions">
+                  <button
+                    type="button"
+                    className="chat-call-btn"
+                    onClick={() => startCall("audio")}
+                    disabled={callState.phase !== "idle"}
+                    aria-label="Ovozli qo'ng'iroq"
+                  >
+                    <MdCall />
+                  </button>
+                  <button
+                    type="button"
+                    className="chat-call-btn"
+                    onClick={() => startCall("video")}
+                    disabled={callState.phase !== "idle"}
+                    aria-label="Video qo'ng'iroq"
+                  >
+                    <MdVideocam />
+                  </button>
+                </div>
               </header>
 
               {!peerPublicKey ? (
                 <div className="chat-e2e-warning">
-                  Bu foydalanuvchi hali E2E kalitini sozlamagan. Xabar
-                  shifrlanmay yuboriladi.{" "}
+                  Bu chat Telegram kabi barcha qurilmalarda ochiladi. E2E kalit
+                  sozlanmagan bo'lsa, xabar oddiy cloud chat sifatida yuboriladi.{" "}
                   <span style={{ color: "red", fontSize: "19px" }}>
                     <MdWarning />
                   </span>
@@ -1230,6 +1701,101 @@ function Messages() {
             </>
           ) : null}
         </section>
+
+        {callState.phase !== "idle" ? (
+          <div
+            className={`call-overlay ${callState.mode === "video" ? "video" : "audio"} ${callState.phase}`}
+          >
+            {callState.mode === "video" ? (
+              <div className="call-video-stage">
+                <video
+                  ref={remoteVideoRef}
+                  className="call-remote-video"
+                  autoPlay
+                  playsInline
+                />
+                <video
+                  ref={localVideoRef}
+                  className="call-local-video"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+              </div>
+            ) : null}
+
+            <div className="call-overlay__content">
+              <div className="call-avatar-wrap">
+                {callState.mode === "audio" ? (
+                  <img
+                    src={callState.peerUser?.profilePic || DEFAULT_AVATAR}
+                    alt={callPeerName}
+                    className="call-avatar"
+                  />
+                ) : null}
+              </div>
+              <strong>{callPeerName}</strong>
+              <p>{callStatusText}</p>
+
+              {callState.phase === "active" && callState.mode === "audio" ? (
+                <div className="call-audio-wave" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : null}
+
+              <div className="call-controls">
+                {callState.phase === "incoming" ? (
+                  <>
+                    <button
+                      type="button"
+                      className="call-control end"
+                      onClick={declineIncomingCall}
+                    >
+                      <MdPhoneDisabled />
+                    </button>
+                    <button
+                      type="button"
+                      className="call-control accept"
+                      onClick={acceptIncomingCall}
+                    >
+                      {callState.mode === "video" ? <MdVideocam /> : <MdCall />}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {callState.phase === "active" ? (
+                      <button
+                        type="button"
+                        className={`call-control secondary ${callState.muted ? "off" : ""}`}
+                        onClick={toggleMute}
+                      >
+                        {callState.muted ? <MdMicOff /> : <MdMic />}
+                      </button>
+                    ) : null}
+                    {callState.phase === "active" && callState.mode === "video" ? (
+                      <button
+                        type="button"
+                        className={`call-control secondary ${!callState.cameraEnabled ? "off" : ""}`}
+                        onClick={toggleCamera}
+                      >
+                        {callState.cameraEnabled ? <MdVideocam /> : <MdVideocamOff />}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="call-control end"
+                      onClick={endActiveCall}
+                    >
+                      <MdCallEnd />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {confirmAction ? (
           <div

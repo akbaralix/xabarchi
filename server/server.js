@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 import connectDB from "./db.js";
 import startBot from "./tgbotlogin/bot.js";
 import cors from "cors";
@@ -114,6 +115,43 @@ const io = new Server(server, {
   },
 });
 
+const activeCalls = new Map();
+
+const getConversationForChat = async (conversationId, chatId) => {
+  if (!conversationId || !chatId) return null;
+  return Conversation.findOne({
+    _id: conversationId,
+    participants: chatId,
+  })
+    .select("_id participants")
+    .lean();
+};
+
+const getPeerChatId = (participants, chatId) =>
+  (Array.isArray(participants) ? participants : []).find(
+    (item) => Number(item) !== Number(chatId),
+  );
+
+const mapCallUser = (user) => ({
+  chatId: Number(user?.chatId || 0),
+  username: user?.username || "",
+  firstName: user?.firstName || "",
+  profilePic: user?.profilePic || "",
+});
+
+const findActiveCallForChat = (chatId) => {
+  for (const call of activeCalls.values()) {
+    if (
+      call.status !== "ended" &&
+      Array.isArray(call.participants) &&
+      call.participants.some((item) => Number(item) === Number(chatId))
+    ) {
+      return call;
+    }
+  }
+  return null;
+};
+
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token || !process.env.JWT_SECRET) {
@@ -212,6 +250,149 @@ io.on("connection", (socket) => {
     } catch (err) {
       console.log("chat:read xatoligi:", err);
     }
+  });
+
+  socket.on("call:start", async ({ conversationId, mode }) => {
+    if (!chatId || !conversationId) return;
+
+    try {
+      const conversation = await getConversationForChat(conversationId, chatId);
+      if (!conversation) {
+        socket.emit("call:error", { message: "Chat topilmadi" });
+        return;
+      }
+
+      const peerChatId = getPeerChatId(conversation.participants, chatId);
+      if (!peerChatId) {
+        socket.emit("call:error", { message: "Qo'ng'iroq uchun foydalanuvchi topilmadi" });
+        return;
+      }
+
+      const busyCall =
+        findActiveCallForChat(chatId) || findActiveCallForChat(peerChatId);
+      if (busyCall) {
+        socket.emit("call:declined", {
+          callId: busyCall.callId,
+          reason: "busy",
+        });
+        return;
+      }
+
+      const caller = await User.findOne({ chatId })
+        .select("chatId username firstName profilePic")
+        .lean();
+
+      const callId = randomUUID();
+      const payload = {
+        callId,
+        conversationId: String(conversation._id),
+        mode: mode === "video" ? "video" : "audio",
+        fromChatId: Number(chatId),
+        fromUser: mapCallUser(caller),
+      };
+
+      activeCalls.set(callId, {
+        ...payload,
+        participants: conversation.participants,
+        status: "ringing",
+      });
+
+      socket.emit("call:ringing", payload);
+      io.to(`user:${peerChatId}`).emit("call:incoming", payload);
+    } catch (error) {
+      console.log("call:start xatoligi:", error);
+      socket.emit("call:error", { message: "Qo'ng'iroqni boshlashda xatolik" });
+    }
+  });
+
+  socket.on("call:accept", ({ callId }) => {
+    if (!chatId || !callId) return;
+    const call = activeCalls.get(callId);
+    if (!call) return;
+    if (!call.participants?.some((item) => Number(item) === Number(chatId))) return;
+
+    call.status = "accepted";
+    activeCalls.set(callId, call);
+
+    call.participants.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit("call:accepted", {
+        callId,
+        conversationId: call.conversationId,
+        mode: call.mode,
+        byChatId: Number(chatId),
+      });
+    });
+  });
+
+  socket.on("call:decline", ({ callId, reason }) => {
+    if (!chatId || !callId) return;
+    const call = activeCalls.get(callId);
+    if (!call) return;
+    if (!call.participants?.some((item) => Number(item) === Number(chatId))) return;
+
+    call.participants.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit("call:declined", {
+        callId,
+        conversationId: call.conversationId,
+        reason: reason || "declined",
+        byChatId: Number(chatId),
+      });
+    });
+
+    activeCalls.delete(callId);
+  });
+
+  socket.on("call:end", ({ callId, reason }) => {
+    if (!chatId || !callId) return;
+    const call = activeCalls.get(callId);
+    if (!call) return;
+    if (!call.participants?.some((item) => Number(item) === Number(chatId))) return;
+
+    call.participants.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit("call:ended", {
+        callId,
+        conversationId: call.conversationId,
+        reason: reason || "ended",
+        byChatId: Number(chatId),
+      });
+    });
+
+    activeCalls.delete(callId);
+  });
+
+  socket.on("call:signal", ({ callId, description, candidate }) => {
+    if (!chatId || !callId) return;
+    const call = activeCalls.get(callId);
+    if (!call) return;
+    if (!call.participants?.some((item) => Number(item) === Number(chatId))) return;
+
+    call.participants
+      .filter((participantId) => Number(participantId) !== Number(chatId))
+      .forEach((participantId) => {
+        io.to(`user:${participantId}`).emit("call:signal", {
+          callId,
+          fromChatId: Number(chatId),
+          description: description || null,
+          candidate: candidate || null,
+        });
+      });
+  });
+
+  socket.on("disconnect", () => {
+    if (!chatId) return;
+    const call = findActiveCallForChat(chatId);
+    if (!call) return;
+
+    call.participants.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit("call:ended", {
+        callId: call.callId,
+        conversationId: call.conversationId,
+        reason: "disconnected",
+        byChatId: Number(chatId),
+      });
+    });
+
+    activeCalls.delete(call.callId);
   });
 });
 

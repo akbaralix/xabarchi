@@ -38,7 +38,12 @@ export const getUser = async () => {
   }
 };
 
-export const updateUserProfile = async ({ profilePic, bio, firstName }) => {
+export const updateUserProfile = async ({
+  profilePic,
+  bio,
+  firstName,
+  statusEmoji,
+}) => {
   const token = localStorage.getItem("UserToken");
   if (!token) throw new Error("Login talab qilinadi");
 
@@ -48,7 +53,7 @@ export const updateUserProfile = async ({ profilePic, bio, firstName }) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ profilePic, bio, firstName }),
+    body: JSON.stringify({ profilePic, bio, firstName, statusEmoji }),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -100,9 +105,12 @@ export const getUserByUsername = async (username) => {
   const token = localStorage.getItem("UserToken");
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const response = await fetch(`${API_BASE}/profile/${encodeURIComponent(normalized)}`, {
-    headers,
-  });
+  const response = await fetch(
+    `${API_BASE}/profile/${encodeURIComponent(normalized)}`,
+    {
+      headers,
+    },
+  );
   if (!response.ok) return null;
 
   const data = await response.json().catch(() => null);
